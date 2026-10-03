@@ -82,10 +82,21 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-sm text-gray-600 mt-6">
-            Security: 0917-123-4567 / sec1234<br/>
-            Admin: 0918-987-6543 / admin1234
-          </p>
+          <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-center text-sm font-semibold text-blue-900 mb-3">Demo Accounts</p>
+            <div className="space-y-2">
+              <div className="text-sm text-blue-800">
+                <strong>Security Staff:</strong><br/>
+                Phone: 0917-123-4567<br/>
+                Password: sec1234
+              </div>
+              <div className="text-sm text-blue-800">
+                <strong>Administrator:</strong><br/>
+                Phone: 0918-987-6543<br/>
+                Password: admin1234
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
