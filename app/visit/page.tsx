@@ -88,7 +88,8 @@ export default function VisitPage() {
         const { token, referenceNumber } = await response.json()
         router.push(`/visit/status/${token}?ref=${referenceNumber}`)
       } else {
-        alert("Error submitting registration. Please try again.")
+        const data = await response.json().catch(() => ({}))
+        alert(data.error || "Error submitting registration. Please try again.")
       }
     } catch (error) {
       console.error("Submission error:", error)

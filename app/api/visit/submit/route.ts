@@ -27,6 +27,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(destinationId)) {
+      return NextResponse.json(
+        { error: "Invalid destination selected. Please refresh the page and select a destination again." },
+        { status: 400 }
+      )
+    }
+
     // Create or find visitor
     const { data: existingVisitor, error: searchError } = await supabase
       .from("visitors")
@@ -71,7 +79,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (visitError) {
-      return NextResponse.json({ error: "Failed to create visit record" }, { status: 500 })
+      console.error("Visit insert error:", visitError)
+      return NextResponse.json({ error: `Failed to create visit record: ${visitError.message}` }, { status: 500 })
     }
 
     return NextResponse.json({
