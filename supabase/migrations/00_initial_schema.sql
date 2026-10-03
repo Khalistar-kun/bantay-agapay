@@ -124,12 +124,25 @@ VALUES
 ALTER TABLE public.visits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.visitors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.verification_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.destinations ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Visitors can view their own visit status (public access with token)
 DROP POLICY IF EXISTS "allow_public_visit_status" ON public.visits;
 CREATE POLICY "allow_public_visit_status"
 ON public.visits FOR SELECT
 USING (true);
+
+-- Policy: Anyone can view active destinations (needed for the public registration form)
+DROP POLICY IF EXISTS "allow_public_read_destinations" ON public.destinations;
+CREATE POLICY "allow_public_read_destinations"
+ON public.destinations FOR SELECT
+USING (active = true);
+
+-- Grant anon/authenticated roles the privileges RLS policies above rely on
+GRANT SELECT ON public.destinations TO anon, authenticated;
+GRANT SELECT ON public.visits TO anon, authenticated;
+GRANT SELECT, INSERT ON public.visitors TO anon, authenticated;
+GRANT INSERT ON public.visits TO anon, authenticated;
 
 -- Function to get pending visitors
 CREATE OR REPLACE FUNCTION get_pending_visitors()
