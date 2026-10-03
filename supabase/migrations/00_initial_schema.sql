@@ -153,7 +153,9 @@ RETURNS TABLE(
   visitor_type varchar,
   purpose text,
   destination_name varchar,
-  registration_time timestamp with time zone
+  registration_time timestamp with time zone,
+  contact_number varchar,
+  face_reference_path text
 ) AS $$
 BEGIN
   RETURN QUERY
@@ -164,7 +166,9 @@ BEGIN
     vis.visitor_type,
     v.purpose,
     d.name,
-    v.registration_time
+    v.registration_time,
+    vis.contact_number,
+    vis.face_reference_path
   FROM visits v
   JOIN visitors vis ON v.visitor_id = vis.id
   JOIN destinations d ON v.destination_id = d.id
@@ -198,3 +202,42 @@ BEGIN
   WHERE v.public_token = token;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Function to get a single visit's full detail for the security review page
+CREATE OR REPLACE FUNCTION get_visit_detail(visit_id uuid)
+RETURNS TABLE(
+  id uuid,
+  reference_number varchar,
+  full_name varchar,
+  visitor_type varchar,
+  contact_number varchar,
+  purpose text,
+  destination_name varchar,
+  status varchar,
+  registration_time timestamp with time zone,
+  face_reference_path text
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    v.id,
+    v.reference_number,
+    vis.full_name,
+    vis.visitor_type,
+    vis.contact_number,
+    v.purpose,
+    d.name,
+    v.status::varchar,
+    v.registration_time,
+    vis.face_reference_path
+  FROM visits v
+  JOIN visitors vis ON v.visitor_id = vis.id
+  JOIN destinations d ON v.destination_id = d.id
+  WHERE v.id = visit_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Storage bucket for visitor face photos (private; accessed via signed URLs from the server)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('visitor-faces', 'visitor-faces', false)
+ON CONFLICT (id) DO NOTHING;

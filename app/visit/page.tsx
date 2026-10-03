@@ -13,6 +13,7 @@ export default function VisitPage() {
   const [formData, setFormData] = useState<VisitorRegistrationInput & { sessionToken: string } | null>(null)
   const [faceError, setFaceError] = useState<string | null>(null)
   const [locationGranted, setLocationGranted] = useState(false)
+  const [facePhoto, setFacePhoto] = useState<string | null>(null)
 
   const handleRegistrationNext = (data: VisitorRegistrationInput & { sessionToken: string }) => {
     setFormData(data)
@@ -20,7 +21,8 @@ export default function VisitPage() {
     setStep("face")
   }
 
-  const handleFaceSuccess = () => {
+  const handleFaceSuccess = (photoDataUrl: string) => {
+    setFacePhoto(photoDataUrl)
     setFaceError(null)
     setStep("gps")
   }
@@ -81,6 +83,7 @@ export default function VisitPage() {
           purpose: formData.purpose,
           destinationId: formData.destinationId,
           sessionToken: formData.sessionToken,
+          facePhoto,
         }),
       })
 
@@ -244,6 +247,12 @@ export default function VisitPage() {
           <div className="bg-white p-8 rounded-lg shadow-md space-y-6">
             {formData && (
               <>
+                {facePhoto && (
+                  <div className="flex justify-center">
+                    <img src={facePhoto} alt="Captured face" className="w-32 h-32 object-cover rounded-full border-4 border-green-500" />
+                  </div>
+                )}
+
                 <div>
                   <p className="text-sm text-gray-500">Full Name</p>
                   <p className="text-lg font-semibold">{formData.fullName}</p>

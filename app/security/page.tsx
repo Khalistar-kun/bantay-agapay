@@ -12,10 +12,13 @@ interface PendingVisitor {
   purpose: string
   destination_name: string
   registration_time: string
+  contact_number: string
+  face_reference_path: string | null
 }
 
 export default function SecurityDashboard() {
   const [pendingVisitors, setPendingVisitors] = useState<PendingVisitor[]>([])
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -23,7 +26,20 @@ export default function SecurityDashboard() {
       try {
         const supabase = createClient()
         const { data } = await supabase.rpc("get_pending_visitors")
-        setPendingVisitors(data || [])
+        const visitors: PendingVisitor[] = data || []
+        setPendingVisitors(visitors)
+
+        const toFetch = visitors.filter((v) => v.face_reference_path && !photoUrls[v.id])
+        for (const v of toFetch) {
+          fetch(`/api/visit/face-photo?path=${encodeURIComponent(v.face_reference_path!)}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((result) => {
+              if (result?.url) {
+                setPhotoUrls((prev) => ({ ...prev, [v.id]: result.url }))
+              }
+            })
+            .catch(() => {})
+        }
       } catch (error) {
         console.error("Error fetching pending visitors:", error)
       } finally {
@@ -35,6 +51,7 @@ export default function SecurityDashboard() {
     const interval = setInterval(fetchPending, 3000)
 
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
@@ -76,6 +93,18 @@ export default function SecurityDashboard() {
             {pendingVisitors.map((visitor) => (
               <div key={visitor.id} className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex justify-between items-start">
+                  {photoUrls[visitor.id] ? (
+                    <img
+                      src={photoUrls[visitor.id]}
+                      alt={visitor.full_name}
+                      className="w-16 h-16 rounded-full object-cover border mr-4 flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-gray-100 border mr-4 flex-shrink-0 flex items-center justify-center text-gray-400 text-xs text-center">
+                      No Photo
+                    </div>
+                  )}
+
                   <div className="flex-1">
                     <div className="flex items-center gap-4 mb-4">
                       <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">

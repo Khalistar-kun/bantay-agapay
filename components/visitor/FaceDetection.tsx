@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from "react"
 
 interface FaceDetectionProps {
-  onSuccess: () => void
+  onSuccess: (photoDataUrl: string) => void
   onError: (message: string) => void
 }
 
@@ -148,10 +148,25 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
       setInstruction("✓ Face verified! Processing...")
 
       detectionTimeoutRef.current = setTimeout(() => {
-        onSuccess()
+        const photoDataUrl = capturePhoto()
+        onSuccess(photoDataUrl)
       }, 1500)
     }
   }, [completedMoves, verificationComplete, onSuccess])
+
+  const capturePhoto = (): string => {
+    const canvas = document.createElement("canvas")
+    const video = videoRef.current
+    if (!video) return ""
+
+    canvas.width = video.videoWidth || 640
+    canvas.height = video.videoHeight || 480
+    const context = canvas.getContext("2d")
+    if (!context) return ""
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL("image/jpeg", 0.85)
+  }
 
   return (
     <div className="space-y-4">

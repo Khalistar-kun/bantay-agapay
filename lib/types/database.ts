@@ -110,7 +110,48 @@ export type Database = {
       }
     }
     Views: {}
-    Functions: {}
+    Functions: {
+      get_pending_visitors: {
+        Args: Record<string, never>
+        Returns: {
+          id: string
+          reference_number: string
+          full_name: string
+          visitor_type: string
+          purpose: string
+          destination_name: string
+          registration_time: string
+          contact_number: string
+          face_reference_path: string | null
+        }[]
+      }
+      get_visit_status: {
+        Args: { token: string }
+        Returns: {
+          status: string
+          visitor_name: string
+          reference_number: string
+          destination_name: string
+          approved_at: string | null
+          denied_reason: string | null
+        }[]
+      }
+      get_visit_detail: {
+        Args: { visit_id: string }
+        Returns: {
+          id: string
+          reference_number: string
+          full_name: string
+          visitor_type: string
+          contact_number: string
+          purpose: string
+          destination_name: string
+          status: string
+          registration_time: string
+          face_reference_path: string | null
+        }[]
+      }
+    }
     Enums: {}
     CompositeTypes: {}
   }

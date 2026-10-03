@@ -18,10 +18,36 @@ function generateToken(): string {
   return crypto.randomBytes(16).toString("hex")
 }
 
+async function uploadFacePhoto(visitorId: string, facePhoto: string): Promise<string | null> {
+  try {
+    const matches = facePhoto.match(/^data:image\/(\w+);base64,(.+)$/)
+    if (!matches) return null
+
+    const ext = matches[1] === "jpeg" ? "jpg" : matches[1]
+    const buffer = Buffer.from(matches[2], "base64")
+    const path = `${visitorId}/${Date.now()}.${ext}`
+
+    const { error } = await supabase.storage.from("visitor-faces").upload(path, buffer, {
+      contentType: `image/${matches[1]}`,
+      upsert: false,
+    })
+
+    if (error) {
+      console.error("Face photo upload error:", error)
+      return null
+    }
+
+    return path
+  } catch (error) {
+    console.error("Face photo upload exception:", error)
+    return null
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { fullName, contactNumber, visitorType, purpose, destinationId } = body
+    const { fullName, contactNumber, visitorType, purpose, destinationId, facePhoto } = body
 
     if (!fullName || !contactNumber || !visitorType || !purpose || !destinationId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
@@ -62,6 +88,13 @@ export async function POST(request: NextRequest) {
       visitorId = existingVisitor.id
     } else {
       return NextResponse.json({ error: "Unable to process visitor record" }, { status: 500 })
+    }
+
+    if (facePhoto) {
+      const facePath = await uploadFacePhoto(visitorId, facePhoto)
+      if (facePath) {
+        await supabase.from("visitors").update({ face_reference_path: facePath }).eq("id", visitorId)
+      }
     }
 
     // Create visit record

@@ -10,18 +10,21 @@ export async function POST(request: NextRequest) {
   try {
     const { visitId, token } = await request.json()
 
-    if (!visitId || !token) {
+    if (!visitId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const { error } = await supabase
-      .from("visits")
-      .update({
-        status: "INSIDE",
-        approved_at: new Date().toISOString(),
-        public_token: token,
-      })
-      .eq("id", visitId)
+    const update: Record<string, unknown> = {
+      status: "INSIDE",
+      approved_at: new Date().toISOString(),
+      check_in: new Date().toISOString(),
+    }
+
+    if (token) {
+      update.public_token = token
+    }
+
+    const { error } = await supabase.from("visits").update(update).eq("id", visitId)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
