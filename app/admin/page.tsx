@@ -60,7 +60,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Link href="/admin/visitors" className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Visitor Records</h3>
             <p className="text-gray-600 text-sm">Search and view visitor history</p>
@@ -74,6 +74,11 @@ export default function AdminDashboard() {
           <Link href="/admin/personnel" className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Personnel</h3>
             <p className="text-gray-600 text-sm">Manage security staff accounts</p>
+          </Link>
+
+          <Link href="/admin/settings" className="bg-blue-50 p-6 rounded-lg shadow-md hover:shadow-lg transition border-2 border-blue-200">
+            <h3 className="text-lg font-semibold text-blue-900 mb-2">⚙️ Settings</h3>
+            <p className="text-blue-700 text-sm">Configure school location & geofence</p>
           </Link>
         </div>
       </div>

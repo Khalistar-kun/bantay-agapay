@@ -1,11 +1,27 @@
-// AFGBMTS School coordinates (Caloocan, Philippines)
-const SCHOOL_COORDINATES = {
-  latitude: 14.2225,
-  longitude: 121.0115,
+// AFGBMTS School coordinates (Won St, Deca Homes Saluysoy, Meycauayan)
+let SCHOOL_COORDINATES = {
+  latitude: 14.737,
+  longitude: 120.9728,
 }
 
 // Geofence radius in meters (500m = 0.5km)
-const GEOFENCE_RADIUS = 500
+let GEOFENCE_RADIUS = 500
+
+// Load settings from database
+if (typeof window !== "undefined") {
+  ;(async () => {
+    try {
+      const res = await fetch("/api/admin/settings")
+      if (res.ok) {
+        const data = await res.json()
+        SCHOOL_COORDINATES = { latitude: data.latitude, longitude: data.longitude }
+        GEOFENCE_RADIUS = data.radius
+      }
+    } catch (err) {
+      console.error("Failed to load school settings")
+    }
+  })()
+}
 
 /**
  * Calculate distance between two coordinates using Haversine formula
