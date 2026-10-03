@@ -24,16 +24,26 @@ export default function AdminSettingsPage() {
   const [mapLoaded, setMapLoaded] = useState(false)
 
   useEffect(() => {
-    // Load LibreMap script
-    const script = document.createElement("script")
-    script.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
-    script.onload = () => setMapLoaded(true)
-    document.head.appendChild(script)
-
+    // Load Leaflet (OpenStreetMap based)
     const link = document.createElement("link")
     link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
     link.rel = "stylesheet"
     document.head.appendChild(link)
+
+    const script = document.createElement("script")
+    script.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+    script.async = true
+    script.onload = () => {
+      setMapLoaded(true)
+    }
+    script.onerror = () => {
+      console.error("Failed to load Leaflet")
+    }
+    document.head.appendChild(script)
+
+    return () => {
+      // Cleanup if needed
+    }
   }, [])
 
   useEffect(() => {
@@ -43,38 +53,45 @@ export default function AdminSettingsPage() {
   }, [mapLoaded, settings.latitude, settings.longitude])
 
   const initializeMap = () => {
-    const mapContainer = document.getElementById("map")
-    if (!mapContainer || !(window as any).L) return
+    if (typeof window === "undefined") return
 
     const L = (window as any).L
+    if (!L) return
 
-    // Clear existing map
-    if ((window as any).map) {
-      (window as any).map.remove()
+    const mapContainer = document.getElementById("map")
+    if (!mapContainer) return
+
+    try {
+      // Clear existing map
+      if ((window as any).mapInstance) {
+        (window as any).mapInstance.remove()
+      }
+
+      const map = L.map("map").setView([settings.latitude, settings.longitude], 15)
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(map)
+
+      // Add marker
+      L.marker([settings.latitude, settings.longitude])
+        .addTo(map)
+        .bindPopup(`<strong>${settings.schoolName}</strong><br>Geofence: ${settings.radius}m`)
+        .openPopup()
+
+      // Add circle for geofence
+      L.circle([settings.latitude, settings.longitude], {
+        color: "blue",
+        fillColor: "#30b0ff",
+        fillOpacity: 0.2,
+        radius: settings.radius,
+      }).addTo(map)
+
+      ;(window as any).mapInstance = map
+    } catch (err) {
+      console.error("Error initializing map:", err)
     }
-
-    const map = L.map("map").setView([settings.latitude, settings.longitude], 15)
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19,
-    }).addTo(map)
-
-    // Add marker
-    L.marker([settings.latitude, settings.longitude])
-      .addTo(map)
-      .bindPopup(`<strong>${settings.schoolName}</strong><br>Geofence: ${settings.radius}m`)
-      .openPopup()
-
-    // Add circle for geofence
-    L.circle([settings.latitude, settings.longitude], {
-      color: "blue",
-      fillColor: "#30b0ff",
-      fillOpacity: 0.2,
-      radius: settings.radius,
-    }).addTo(map)
-
-    ;(window as any).map = map
   }
 
   const handleSave = async () => {
