@@ -26,7 +26,9 @@ const MOCK_DESTINATIONS: Destination[] = [
 
 export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistrationInput & { sessionToken: string }) => void }) {
   const [destinations, setDestinations] = useState<Destination[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [usingMockData, setUsingMockData] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const {
     register,
     handleSubmit,
@@ -43,16 +45,20 @@ export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistratio
 
         if (error) {
           console.error("Error loading destinations from database:", error)
+          setLoadError(error.message)
+          setUsingMockData(true)
           setDestinations(MOCK_DESTINATIONS)
         } else if (data && data.length > 0) {
-          console.log("Loaded destinations from database:", data)
           setDestinations(data)
         } else {
-          console.warn("No destinations in database, using mock data")
+          setLoadError("No destinations found in database")
+          setUsingMockData(true)
           setDestinations(MOCK_DESTINATIONS)
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error loading destinations, using mock data:", error)
+        setLoadError(error?.message || "Unknown error")
+        setUsingMockData(true)
         setDestinations(MOCK_DESTINATIONS)
       } finally {
         setLoading(false)
@@ -69,6 +75,14 @@ export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistratio
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {usingMockData && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800 font-semibold text-sm">⚠️ Could not load destinations from database</p>
+          <p className="text-red-700 text-xs mt-1">{loadError}</p>
+          <p className="text-red-700 text-xs mt-1">Using placeholder list — registration will fail if you submit. Please notify the administrator.</p>
+        </div>
+      )}
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
         <input
