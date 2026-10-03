@@ -74,14 +74,25 @@ export default function AdminSettingsPage() {
         maxZoom: 19,
       }).addTo(map)
 
-      // Add marker
-      L.marker([settings.latitude, settings.longitude])
+      // Add draggable marker
+      let marker = L.marker([settings.latitude, settings.longitude], { draggable: true })
         .addTo(map)
         .bindPopup(`<strong>${settings.schoolName}</strong><br>Geofence: ${settings.radius}m`)
         .openPopup()
 
+      // Update coordinates when marker is dragged
+      marker.on("dragend", () => {
+        const newLatLng = marker.getLatLng()
+        setSettings({
+          ...settings,
+          latitude: parseFloat(newLatLng.lat.toFixed(4)),
+          longitude: parseFloat(newLatLng.lng.toFixed(4)),
+        })
+        updateCircle(newLatLng.lat, newLatLng.lng)
+      })
+
       // Add circle for geofence
-      L.circle([settings.latitude, settings.longitude], {
+      const circleLayer = L.circle([settings.latitude, settings.longitude], {
         color: "blue",
         fillColor: "#30b0ff",
         fillOpacity: 0.2,
@@ -89,8 +100,31 @@ export default function AdminSettingsPage() {
       }).addTo(map)
 
       ;(window as any).mapInstance = map
+      ;(window as any).mapMarker = marker
+      ;(window as any).mapCircle = circleLayer
+
+      // Handle map clicks to place marker
+      map.on("click", (e: any) => {
+        const lat = parseFloat(e.latlng.lat.toFixed(4))
+        const lng = parseFloat(e.latlng.lng.toFixed(4))
+
+        setSettings({
+          ...settings,
+          latitude: lat,
+          longitude: lng,
+        })
+
+        marker.setLatLng([lat, lng])
+        updateCircle(lat, lng)
+      })
     } catch (err) {
       console.error("Error initializing map:", err)
+    }
+  }
+
+  const updateCircle = (lat: number, lng: number) => {
+    if ((window as any).mapCircle) {
+      ;(window as any).mapCircle.setLatLng([lat, lng])
     }
   }
 
@@ -232,11 +266,14 @@ export default function AdminSettingsPage() {
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <h2 className="text-2xl font-bold p-8 pb-4">School Location Map</h2>
             <div id="map" className="w-full h-96" style={{ minHeight: "500px" }}></div>
-            <div className="p-4 bg-gray-50 border-t">
-              <p className="text-sm text-gray-600">
-                🔵 Blue circle shows the geofence area (radius: {settings.radius}m). Visitors must be
-                within this area for location verification.
-              </p>
+            <div className="p-4 bg-blue-50 border-t border-blue-200">
+              <p className="text-sm text-blue-900 font-semibold mb-2">📍 How to Pin Location:</p>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>✓ Click anywhere on the map to place the marker</li>
+                <li>✓ Drag the marker to adjust position</li>
+                <li>✓ Coordinates update automatically as you move</li>
+                <li>✓ 🔵 Blue circle = geofence area (radius: {settings.radius}m)</li>
+              </ul>
             </div>
           </div>
         </div>
