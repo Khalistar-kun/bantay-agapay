@@ -145,6 +145,7 @@ GRANT SELECT, INSERT ON public.visitors TO anon, authenticated;
 GRANT INSERT ON public.visits TO anon, authenticated;
 
 -- Function to get pending visitors
+DROP FUNCTION IF EXISTS get_pending_visitors();
 CREATE OR REPLACE FUNCTION get_pending_visitors()
 RETURNS TABLE(
   id uuid,
@@ -178,6 +179,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to get visit status by token
+DROP FUNCTION IF EXISTS get_visit_status(varchar);
 CREATE OR REPLACE FUNCTION get_visit_status(token varchar)
 RETURNS TABLE(
   status varchar,
@@ -204,6 +206,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to get a single visit's full detail for the security review page
+DROP FUNCTION IF EXISTS get_visit_detail(uuid);
 CREATE OR REPLACE FUNCTION get_visit_detail(visit_id uuid)
 RETURNS TABLE(
   id uuid,
