@@ -122,9 +122,12 @@ export default function AdminSettingsPage() {
     }
   }
 
-  const updateCircle = (lat: number, lng: number) => {
+  const updateCircle = (lat: number, lng: number, radius?: number) => {
     if ((window as any).mapCircle) {
       ;(window as any).mapCircle.setLatLng([lat, lng])
+      if (radius !== undefined) {
+        ;(window as any).mapCircle.setRadius(radius)
+      }
     }
   }
 
@@ -223,17 +226,50 @@ export default function AdminSettingsPage() {
               {/* Geofence Radius */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Geofence Radius (meters)
+                  Geofence Radius: {settings.radius}m
                 </label>
+
+                {/* Slider */}
                 <input
-                  type="number"
+                  type="range"
+                  min="100"
+                  max="2000"
+                  step="50"
                   value={settings.radius}
-                  onChange={(e) => setSettings({ ...settings, radius: parseInt(e.target.value) })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="500"
+                  onChange={(e) => {
+                    const newRadius = parseInt(e.target.value)
+                    setSettings({ ...settings, radius: newRadius })
+                    updateCircle(settings.latitude, settings.longitude, newRadius)
+                  }}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((settings.radius - 100) / 1900) * 100}%, #e5e7eb ${((settings.radius - 100) / 1900) * 100}%, #e5e7eb 100%)`
+                  }}
                 />
-                <p className="text-xs text-gray-500 mt-2">
-                  Visitors must be within this distance to verify location
+
+                {/* Number input as backup */}
+                <div className="mt-3 flex gap-2">
+                  <input
+                    type="number"
+                    value={settings.radius}
+                    onChange={(e) => {
+                      const val = Math.max(100, Math.min(2000, parseInt(e.target.value) || 500))
+                      setSettings({ ...settings, radius: val })
+                      updateCircle(settings.latitude, settings.longitude, val)
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="500"
+                    min="100"
+                    max="2000"
+                  />
+                  <span className="px-3 py-2 bg-gray-100 rounded-lg text-gray-700 font-semibold">meters</span>
+                </div>
+
+                <p className="text-xs text-gray-500 mt-3">
+                  Drag the slider or enter a value (100m - 2000m). Watch the circle on the map update in real-time!
+                </p>
+                <p className="text-xs text-blue-600 mt-2 font-semibold">
+                  💡 Adjust to match your school's actual size
                 </p>
               </div>
 
