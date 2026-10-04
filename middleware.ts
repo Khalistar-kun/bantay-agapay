@@ -1,6 +1,17 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
+function redirectTo(request: NextRequest, pathname: string) {
+  const destination = request.nextUrl.clone()
+  // Next's internal request URL may be localhost behind the HTTPS tunnel.
+  // Keep redirects on the host that the browser is actually using.
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host")
+  if (host && /^[a-z0-9.-]+(?::\d+)?$/i.test(host)) destination.host = host
+  destination.pathname = pathname
+  destination.search = ""
+  return NextResponse.redirect(destination)
+}
+
 export async function middleware(request: NextRequest) {
   const isProtected = request.nextUrl.pathname.startsWith("/admin") || request.nextUrl.pathname.startsWith("/security")
 
@@ -11,7 +22,7 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get("staff_session")?.value
 
   if (!token) {
-    return NextResponse.redirect(new URL("/login", request.url))
+    return redirectTo(request, "/login")
   }
 
   const supabase = createClient(
@@ -26,7 +37,7 @@ export async function middleware(request: NextRequest) {
     .single()
 
   if (!session || new Date(session.expires_at) < new Date()) {
-    return NextResponse.redirect(new URL("/login", request.url))
+    return redirectTo(request, "/login")
   }
 
   const { data: profile } = await supabase
@@ -36,15 +47,15 @@ export async function middleware(request: NextRequest) {
     .single()
 
   if (!profile || !profile.active) {
-    return NextResponse.redirect(new URL("/login", request.url))
+    return redirectTo(request, "/login")
   }
 
   if (request.nextUrl.pathname.startsWith("/admin") && profile.role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/security", request.url))
+    return redirectTo(request, "/security")
   }
 
   if (request.nextUrl.pathname.startsWith("/security") && profile.role !== "SECURITY" && profile.role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/login", request.url))
+    return redirectTo(request, "/login")
   }
 
   return NextResponse.next()

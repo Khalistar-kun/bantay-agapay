@@ -19,6 +19,9 @@ try {
   const health = await call('/api/health')
   assert.equal(health.status, 200)
   assert.equal((await health.json()).database, 'connected')
+  const protectedPage = await call('/admin', false, { redirect: 'manual' })
+  assert.equal(protectedPage.status, 307)
+  assert.equal(new URL(protectedPage.headers.get('location')).host, base.host, 'Login redirect must stay on the phone-accessible host')
   for (const path of ['/api/admin/stats', '/api/security/pending']) {
     const response = await call(path)
     assert.ok([401, 403].includes(response.status), `${path} must reject unauthenticated access`)
