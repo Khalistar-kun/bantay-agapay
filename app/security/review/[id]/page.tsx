@@ -175,7 +175,7 @@ export default function SecurityReviewPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           <p className="text-gray-600 mt-4">Loading visitor record...</p>
         </div>
       </div>
@@ -187,7 +187,7 @@ export default function SecurityReviewPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-lg shadow-md p-8 text-center max-w-md">
           <p className="text-red-600 font-semibold mb-4">{error || "Visitor not found"}</p>
-          <Link href="/security" className="text-blue-600 hover:text-blue-800">
+          <Link href="/security" className="text-primary-600 hover:text-primary-800">
             ← Back to Dashboard
           </Link>
         </div>
@@ -201,7 +201,7 @@ export default function SecurityReviewPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay</h1>
-            <Link href="/security" className="text-blue-600 hover:text-blue-800">
+            <Link href="/security" className="text-primary-600 hover:text-primary-800">
               ← Back to Dashboard
             </Link>
           </div>
@@ -228,7 +228,7 @@ export default function SecurityReviewPage() {
           {/* Details */}
           <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+              <span className="bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm font-semibold">
                 {visit.reference_number}
               </span>
               <span className="text-xs text-gray-500">

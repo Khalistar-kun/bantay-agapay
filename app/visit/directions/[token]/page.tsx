@@ -55,7 +55,7 @@ export default function DirectionsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     )
   }
@@ -65,7 +65,7 @@ export default function DirectionsPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md text-center">
           <p className="text-red-600 font-semibold">{error || "Directions not found"}</p>
-          <a href="/" className="text-blue-600 hover:text-blue-800 mt-4 inline-block">
+          <a href="/" className="text-primary-600 hover:text-primary-800 mt-4 inline-block">
             Return Home
           </a>
         </div>
@@ -142,8 +142,8 @@ export default function DirectionsPage() {
             </div>
           )}
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-blue-800 text-sm">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+            <p className="text-primary-800 text-sm">
               <strong>Tip:</strong> If you need more information, please ask any staff member wearing a school ID or
               contact the security office.
             </p>
@@ -151,7 +151,7 @@ export default function DirectionsPage() {
 
           <a
             href={`/visit/status/${token}`}
-            className="w-full block text-center bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition"
+            className="w-full block text-center bg-primary-600 text-white font-semibold py-3 rounded-lg hover:bg-primary-700 transition"
           >
             ← Back to My QR Code
           </a>

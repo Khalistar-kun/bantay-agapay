@@ -139,7 +139,7 @@ export default function SecurityDashboard() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
             <p className="text-gray-600 mt-4">Loading pending visitors...</p>
           </div>
         ) : pendingVisitors.length === 0 ? (
@@ -165,7 +165,7 @@ export default function SecurityDashboard() {
 
                   <div className="flex-1">
                     <div className="flex items-center gap-4 mb-4">
-                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+                      <span className="bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm font-semibold">
                         {visitor.reference_number}
                       </span>
                       <p className="text-xs text-gray-500">
@@ -194,7 +194,7 @@ export default function SecurityDashboard() {
                   <div className="flex gap-3 ml-4">
                     <Link
                       href={`/security/review/${visitor.id}`}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                      className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
                     >
                       Review
                     </Link>

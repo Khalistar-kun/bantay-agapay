@@ -117,7 +117,7 @@ export default function AdminDashboard() {
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md">
             <p className="text-gray-600 text-sm">Completed Today</p>
-            <p className="text-4xl font-bold text-blue-600 mt-2">{stats.completedToday}</p>
+            <p className="text-4xl font-bold text-primary-600 mt-2">{stats.completedToday}</p>
           </div>
         </div>
 
@@ -137,9 +137,9 @@ export default function AdminDashboard() {
             <p className="text-gray-600 text-sm">Manage security staff accounts</p>
           </Link>
 
-          <Link href="/admin/settings" className="bg-blue-50 p-6 rounded-lg shadow-md hover:shadow-lg transition border-2 border-blue-200">
-            <h3 className="text-lg font-semibold text-blue-900 mb-2">⚙️ Settings</h3>
-            <p className="text-blue-700 text-sm">Configure school location & geofence</p>
+          <Link href="/admin/settings" className="bg-primary-50 p-6 rounded-lg shadow-md hover:shadow-lg transition border-2 border-primary-200">
+            <h3 className="text-lg font-semibold text-primary-900 mb-2">⚙️ Settings</h3>
+            <p className="text-primary-700 text-sm">Configure school location & geofence</p>
           </Link>
         </div>
       </div>

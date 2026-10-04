@@ -192,7 +192,7 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
       {/* Instructions */}
       <div
         className={`p-4 rounded-lg text-center font-semibold ${
-          verificationComplete ? "bg-green-50 text-green-900" : faceDetected ? "bg-blue-50 text-blue-900" : "bg-yellow-50 text-yellow-900"
+          verificationComplete ? "bg-green-50 text-green-900" : faceDetected ? "bg-primary-50 text-primary-900" : "bg-yellow-50 text-yellow-900"
         }`}
       >
         {loading ? "Initializing camera..." : capturedPhoto ? "Review your photo" : instruction}
@@ -265,7 +265,7 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
 
       {/* Movement Progress */}
       {faceDetected && !verificationComplete && !capturedPhoto && (
-        <div className="bg-blue-50 rounded-lg p-4">
+        <div className="bg-primary-50 rounded-lg p-4">
           <p className="text-sm font-semibold text-gray-900 mb-3">Face verification progress:</p>
           <div className="flex gap-4">
             <div className={`flex-1 p-3 rounded-lg text-center font-semibold ${completedMoves.includes("left") ? "bg-green-100 text-green-800" : "bg-white text-gray-700 border border-gray-300"}`}>

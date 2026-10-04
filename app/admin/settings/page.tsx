@@ -183,7 +183,7 @@ export default function AdminSettingsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay Admin</h1>
-            <Link href="/admin" className="text-blue-600 hover:text-blue-800">
+            <Link href="/admin" className="text-primary-600 hover:text-primary-800">
               ← Back to Dashboard
             </Link>
           </div>
@@ -213,7 +213,7 @@ export default function AdminSettingsPage() {
                   type="text"
                   value={settings.schoolName}
                   onChange={(e) => setSettings({ ...settings, schoolName: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                   placeholder="School name and address"
                 />
               </div>
@@ -228,7 +228,7 @@ export default function AdminSettingsPage() {
                   step="0.0001"
                   value={settings.latitude}
                   onChange={(e) => setSettings({ ...settings, latitude: parseFloat(e.target.value) })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                   placeholder="14.7370"
                 />
               </div>
@@ -243,7 +243,7 @@ export default function AdminSettingsPage() {
                   step="0.0001"
                   value={settings.longitude}
                   onChange={(e) => setSettings({ ...settings, longitude: parseFloat(e.target.value) })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                   placeholder="120.9728"
                 />
               </div>
@@ -282,7 +282,7 @@ export default function AdminSettingsPage() {
                       setSettings({ ...settings, radius: val })
                       updateCircle(settings.latitude, settings.longitude, val)
                     }}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                     placeholder="500"
                     min="100"
                     max="2000"
@@ -293,7 +293,7 @@ export default function AdminSettingsPage() {
                 <p className="text-xs text-gray-500 mt-3">
                   Drag the slider or enter a value (100m - 2000m). Watch the circle on the map update in real-time!
                 </p>
-                <p className="text-xs text-blue-600 mt-2 font-semibold">
+                <p className="text-xs text-primary-600 mt-2 font-semibold">
                   💡 Adjust to match your school's actual size
                 </p>
               </div>
@@ -302,22 +302,22 @@ export default function AdminSettingsPage() {
               <button
                 onClick={handleSave}
                 disabled={loading}
-                className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                className="w-full bg-primary-600 text-white font-semibold py-3 rounded-lg hover:bg-primary-700 transition disabled:opacity-50"
               >
                 {loading ? "Saving..." : "Save Settings"}
               </button>
             </div>
 
             {/* Current Coordinates Info */}
-            <div className="mt-8 p-4 bg-blue-50 rounded-lg">
-              <h3 className="font-semibold text-blue-900 mb-2">Current Location</h3>
-              <p className="text-sm text-blue-800">
+            <div className="mt-8 p-4 bg-primary-50 rounded-lg">
+              <h3 className="font-semibold text-primary-900 mb-2">Current Location</h3>
+              <p className="text-sm text-primary-800">
                 <strong>Lat:</strong> {settings.latitude}
               </p>
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-primary-800">
                 <strong>Lon:</strong> {settings.longitude}
               </p>
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-primary-800">
                 <strong>Radius:</strong> {settings.radius}m
               </p>
             </div>
@@ -337,9 +337,9 @@ export default function AdminSettingsPage() {
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <h2 className="text-2xl font-bold p-8 pb-4">School Location Map</h2>
               <div id="map" className="w-full h-96" style={{ minHeight: "500px" }}></div>
-              <div className="p-4 bg-blue-50 border-t border-blue-200">
-                <p className="text-sm text-blue-900 font-semibold mb-2">📍 How to Pin Location:</p>
-                <ul className="text-sm text-blue-800 space-y-1">
+              <div className="p-4 bg-primary-50 border-t border-primary-200">
+                <p className="text-sm text-primary-900 font-semibold mb-2">📍 How to Pin Location:</p>
+                <ul className="text-sm text-primary-800 space-y-1">
                   <li>✓ Click anywhere on the map to place the marker</li>
                   <li>✓ Drag the marker to adjust position</li>
                   <li>✓ Coordinates update automatically as you move</li>

@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { ShieldCheck, ArrowLeft } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -38,36 +40,42 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#faf8f5] flex items-center justify-center p-5 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Bantay-Agapay</h1>
-          <p className="text-gray-600">Staff Login</p>
+          <Link href="/" className="mb-8 inline-flex items-center gap-2 text-sm text-primary-800"><ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to welcome</Link>
+          <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-900 text-gold-300"><ShieldCheck className="h-7 w-7" aria-hidden="true" /></span>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, staff</h1>
+          <p className="text-gray-600">Bantay-Agapay · AFGBMTS</p>
         </div>
 
-        <div className="bg-white p-8 rounded-lg shadow-md">
+        <div className="bg-white p-8 rounded-2xl border border-primary-100 shadow-xl shadow-primary-900/5">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
+            {error && <div role="alert" className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+              <label htmlFor="staff-phone" className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
               <input
+                id="staff-phone"
+                autoComplete="username"
                 type="tel"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                 placeholder="09XX-XXX-XXXX or +63XXX"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+              <label htmlFor="staff-password" className="block text-sm font-medium text-gray-700 mb-2">Password</label>
               <input
+                id="staff-password"
+                autoComplete="current-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                 placeholder="••••••••"
                 required
               />
@@ -76,7 +84,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              className="w-full bg-primary-800 text-white font-semibold py-3 rounded-lg hover:bg-primary-900 transition disabled:opacity-50"
             >
               {loading ? "Logging in..." : "Login"}
             </button>

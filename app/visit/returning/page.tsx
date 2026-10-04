@@ -163,7 +163,7 @@ export default function ReturningVisitorPage() {
 
   if (step === "phone") {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4 py-8">
+      <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white p-4 py-8">
         <div className="max-w-md w-full mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome Back</h1>
@@ -184,7 +184,7 @@ export default function ReturningVisitorPage() {
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="09XX-XXX-XXXX"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">The number you used during your previous visit</p>
@@ -192,7 +192,7 @@ export default function ReturningVisitorPage() {
 
               <button
                 type="submit"
-                className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition"
+                className="w-full bg-primary-600 text-white font-semibold py-3 rounded-lg hover:bg-primary-700 transition"
               >
                 Continue to Face Verification
               </button>
@@ -272,7 +272,7 @@ export default function ReturningVisitorPage() {
                   <select
                     value={destinationId}
                     onChange={(e) => setDestinationId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                     required
                   >
                     <option value="">Select destination</option>
@@ -292,7 +292,7 @@ export default function ReturningVisitorPage() {
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
                   placeholder="What is the purpose of your visit?"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                   required
                 />
               </div>
@@ -300,7 +300,7 @@ export default function ReturningVisitorPage() {
               <button
                 type="submit"
                 disabled={loadingDestinations}
-                className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                className="w-full bg-primary-600 text-white font-semibold py-3 rounded-lg hover:bg-primary-700 transition disabled:opacity-50"
               >
                 Continue to Location Verification
               </button>
@@ -345,8 +345,8 @@ export default function ReturningVisitorPage() {
               </p>
             </div>
           ) : (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-blue-800 text-center font-semibold">Requesting location permission...</p>
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
+              <p className="text-primary-800 text-center font-semibold">Requesting location permission...</p>
             </div>
           )}
 

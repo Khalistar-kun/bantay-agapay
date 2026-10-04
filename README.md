@@ -45,6 +45,21 @@ npm start
 
 Push to GitHub, connect to Vercel for automatic deployments.
 
+### GitHub builds
+
+The `Build app` workflow runs TypeScript checks and a production build on pushes
+to `main`, pull requests, or manual dispatch. Download `nextjs-build` from the
+workflow run to inspect the compiled output. CI uses dummy Supabase settings;
+configure the real values from `.env.example` on your deployment host. GitHub
+Pages cannot serve this app's authentication and API routes; use a Node.js host
+such as Vercel for a live deployment.
+
+### UI theme
+
+The UI uses the existing AFGBMTS project red palette, with gold and white accents.
+This is a provisional school-inspired palette, not verified official color codes.
+Update `primary` and `gold` in `tailwind.config.js` when official colors are available.
+
 ## Database Setup
 
 1. Create new Supabase project

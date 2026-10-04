@@ -48,7 +48,7 @@ export default function VisitorRecordsPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay Admin</h1>
-            <Link href="/admin" className="text-blue-600 hover:text-blue-800">
+            <Link href="/admin" className="text-primary-600 hover:text-primary-800">
               ← Back to Dashboard
             </Link>
           </div>
@@ -65,11 +65,11 @@ export default function VisitorRecordsPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name or phone number"
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
           />
           <button
             type="submit"
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-semibold"
           >
             Search
           </button>
@@ -77,7 +77,7 @@ export default function VisitorRecordsPage() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
         ) : visitors.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center text-gray-500">No visitors found</div>

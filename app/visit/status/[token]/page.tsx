@@ -119,7 +119,7 @@ export default function VisitStatusPage() {
     return (
       <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading your visit status...</p>
         </div>
       </div>
@@ -202,7 +202,7 @@ export default function VisitStatusPage() {
 
             <a
               href={`/visit/directions/${token}`}
-              className="w-full block text-center bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition mb-6"
+              className="w-full block text-center bg-primary-600 text-white font-semibold py-3 rounded-lg hover:bg-primary-700 transition mb-6"
             >
               View Campus Map & Directions
             </a>

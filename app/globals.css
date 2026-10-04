@@ -3,7 +3,15 @@
 @tailwind utilities;
 
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-gray-50 text-gray-900 antialiased;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer base {
+  :focus-visible { outline: 3px solid #c99a2e; outline-offset: 3px; }
+  ::selection { background: #fde8e6; color: #7f271d; }
+  input, select, textarea { min-height: 44px; }
+  button, a { -webkit-tap-highlight-color: transparent; }
 }
 
 html {

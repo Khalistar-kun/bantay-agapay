@@ -117,7 +117,7 @@ export default function PersonnelPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay Admin</h1>
-            <Link href="/admin" className="text-blue-600 hover:text-blue-800">
+            <Link href="/admin" className="text-primary-600 hover:text-primary-800">
               ← Back to Dashboard
             </Link>
           </div>
@@ -135,7 +135,7 @@ export default function PersonnelPage() {
               setShowInvite((v) => !v)
               setInviteUrl(null)
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-semibold"
           >
             {showInvite ? "Cancel" : "+ Generate Invite QR"}
           </button>
@@ -156,7 +156,7 @@ export default function PersonnelPage() {
                   <select
                     value={inviteRole}
                     onChange={(e) => setInviteRole(e.target.value as "SECURITY" | "ADMIN")}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                   >
                     <option value="SECURITY">Security</option>
                     <option value="ADMIN">Admin</option>
@@ -186,7 +186,7 @@ export default function PersonnelPage() {
                 </p>
                 <button
                   onClick={handleGenerateInvite}
-                  className="mt-4 text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                  className="mt-4 text-primary-600 hover:text-primary-800 text-sm font-semibold"
                 >
                   Generate a new one
                 </button>
@@ -197,7 +197,7 @@ export default function PersonnelPage() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
         ) : (
           <div className="space-y-10">
@@ -285,7 +285,7 @@ export default function PersonnelPage() {
                           onChange={(e) => updateProfile(p.id, { role: e.target.value as "ADMIN" | "SECURITY" })}
                           disabled={updating === p.id}
                           className={`px-3 py-1 rounded-full text-sm font-semibold border-0 ${
-                            p.role === "ADMIN" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"
+                            p.role === "ADMIN" ? "bg-purple-100 text-purple-800" : "bg-primary-100 text-primary-800"
                           }`}
                         >
                           <option value="SECURITY">SECURITY</option>

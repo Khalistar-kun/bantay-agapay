@@ -88,7 +88,7 @@ export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistratio
         <input
           {...register("fullName")}
           type="text"
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
           placeholder="Enter your full name"
         />
         {errors.fullName && <p className="text-red-500 text-sm mt-1">{errors.fullName.message}</p>}
@@ -99,7 +99,7 @@ export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistratio
         <input
           {...register("contactNumber")}
           type="tel"
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
           placeholder="09XX-XXX-XXXX"
         />
         {errors.contactNumber && <p className="text-red-500 text-sm mt-1">{errors.contactNumber.message}</p>}
@@ -109,7 +109,7 @@ export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistratio
         <label className="block text-sm font-medium text-gray-700 mb-2">Visitor Type *</label>
         <select
           {...register("visitorType")}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
         >
           <option value="">Select visitor type</option>
           <option value="Parent">Parent / Guardian</option>
@@ -127,7 +127,7 @@ export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistratio
         <input
           {...register("purpose")}
           type="text"
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
           placeholder="What is the purpose of your visit?"
         />
         {errors.purpose && <p className="text-red-500 text-sm mt-1">{errors.purpose.message}</p>}
@@ -140,7 +140,7 @@ export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistratio
         ) : (
           <select
             {...register("destinationId")}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
           >
             <option value="">Select destination</option>
             {destinations.map((dest) => (
@@ -156,7 +156,7 @@ export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistratio
       <button
         type="submit"
         disabled={isSubmitting || loading}
-        className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+        className="w-full bg-primary-600 text-white font-semibold py-3 rounded-lg hover:bg-primary-700 transition disabled:opacity-50"
       >
         {isSubmitting ? "Processing..." : "Continue to Face Verification"}
       </button>

@@ -125,7 +125,7 @@ export default function VisitPage() {
 
   if (step === "welcome") {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white flex items-center justify-center p-4">
         <div className="max-w-md w-full">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Welcome</h1>
@@ -138,26 +138,26 @@ export default function VisitPage() {
 
             <ol className="space-y-3 mb-8">
               <li className="flex items-start">
-                <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">1</span>
+                <span className="bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">1</span>
                 <span className="text-gray-700">Provide your information</span>
               </li>
               <li className="flex items-start">
-                <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">2</span>
+                <span className="bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">2</span>
                 <span className="text-gray-700">Face verification</span>
               </li>
               <li className="flex items-start">
-                <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">3</span>
+                <span className="bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">3</span>
                 <span className="text-gray-700">Location verification</span>
               </li>
               <li className="flex items-start">
-                <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">4</span>
+                <span className="bg-primary-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">4</span>
                 <span className="text-gray-700">Submit for approval</span>
               </li>
             </ol>
 
             <button
               onClick={() => setStep("info")}
-              className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition"
+              className="w-full bg-primary-600 text-white font-semibold py-3 rounded-lg hover:bg-primary-700 transition"
             >
               Start Registration
             </button>
@@ -234,16 +234,16 @@ export default function VisitPage() {
             )}
 
             {!locationGranted && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                <p className="text-blue-800 text-center font-semibold">Location permission required</p>
-                <p className="text-blue-700 text-center text-sm mt-2">We need your location to verify you are on campus</p>
+              <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
+                <p className="text-primary-800 text-center font-semibold">Location permission required</p>
+                <p className="text-primary-700 text-center text-sm mt-2">We need your location to verify you are on campus</p>
               </div>
             )}
 
             <button
               onClick={handleRequestLocation}
               disabled={locationGranted}
-              className="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-primary-600 text-white font-semibold py-3 rounded-lg hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {locationGranted ? "✓ Location Verified - Continue" : "Request Location Permission"}
             </button>

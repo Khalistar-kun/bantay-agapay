@@ -51,7 +51,7 @@ export default function VisitHistoryPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay</h1>
-            <Link href="/security" className="text-blue-600 hover:text-blue-800">
+            <Link href="/security" className="text-primary-600 hover:text-primary-800">
               ← Back to Dashboard
             </Link>
           </div>
@@ -64,7 +64,7 @@ export default function VisitHistoryPage() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
         ) : visits.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center text-gray-500">No visit history yet</div>
@@ -75,7 +75,7 @@ export default function VisitHistoryPage() {
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+                      <span className="bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm font-semibold">
                         {v.reference_number}
                       </span>
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusStyles[v.status]}`}>

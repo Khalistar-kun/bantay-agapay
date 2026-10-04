@@ -158,7 +158,7 @@ export default function DestinationsPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay Admin</h1>
-            <Link href="/admin" className="text-blue-600 hover:text-blue-800">
+            <Link href="/admin" className="text-primary-600 hover:text-primary-800">
               ← Back to Dashboard
             </Link>
           </div>
@@ -173,7 +173,7 @@ export default function DestinationsPage() {
           </div>
           <button
             onClick={() => setShowForm((v) => !v)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-semibold"
           >
             {showForm ? "Cancel" : "+ New Destination"}
           </button>
@@ -192,7 +192,7 @@ export default function DestinationsPage() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                   required
                 />
               </div>
@@ -203,7 +203,7 @@ export default function DestinationsPage() {
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   placeholder="Administration, Academic, etc."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
               <div>
@@ -212,7 +212,7 @@ export default function DestinationsPage() {
                   type="text"
                   value={building}
                   onChange={(e) => setBuilding(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
               <div>
@@ -221,7 +221,7 @@ export default function DestinationsPage() {
                   type="text"
                   value={floor}
                   onChange={(e) => setFloor(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
               <div>
@@ -230,7 +230,7 @@ export default function DestinationsPage() {
                   type="text"
                   value={room}
                   onChange={(e) => setRoom(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
               <div>
@@ -240,7 +240,7 @@ export default function DestinationsPage() {
                   value={landmark}
                   onChange={(e) => setLandmark(e.target.value)}
                   placeholder="e.g. Beside Guidance Office"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
               <div className="md:col-span-2">
@@ -249,7 +249,7 @@ export default function DestinationsPage() {
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
               <div className="md:col-span-2">
@@ -259,7 +259,7 @@ export default function DestinationsPage() {
                   value={directions}
                   onChange={(e) => setDirections(e.target.value)}
                   placeholder="Step-by-step directions visitors will read"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
             </div>
@@ -276,7 +276,7 @@ export default function DestinationsPage() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-md divide-y">
@@ -299,7 +299,7 @@ export default function DestinationsPage() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => (pinningId === d.id ? setPinningId(null) : openPinMap(d))}
-                      className="px-3 py-1 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition"
+                      className="px-3 py-1 text-sm border border-primary-300 text-primary-700 rounded-lg hover:bg-primary-50 transition"
                     >
                       {pinningId === d.id ? "Close Map" : "Pin Location"}
                     </button>

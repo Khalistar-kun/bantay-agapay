@@ -136,7 +136,7 @@ export default function CurrentlyInsidePage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay</h1>
-            <Link href="/security" className="text-blue-600 hover:text-blue-800">
+            <Link href="/security" className="text-primary-600 hover:text-primary-800">
               ← Back to Dashboard
             </Link>
           </div>
@@ -163,7 +163,7 @@ export default function CurrentlyInsidePage() {
           </div>
           <button
             onClick={() => setShowScanner(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold whitespace-nowrap"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-semibold whitespace-nowrap"
           >
             📷 Scan QR to Check Out
           </button>
@@ -177,7 +177,7 @@ export default function CurrentlyInsidePage() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
         ) : visitors.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center text-gray-500">
@@ -212,7 +212,7 @@ export default function CurrentlyInsidePage() {
                     <button
                       onClick={() => setViewingLocationId(viewingLocationId === v.id ? null : v.id)}
                       disabled={!v.current_latitude || !v.current_longitude}
-                      className="px-4 py-2 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                      className="px-4 py-2 text-sm border border-primary-300 text-primary-700 rounded-lg hover:bg-primary-50 transition disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                     >
                       {viewingLocationId === v.id ? "Hide Location" : "📍 View Location"}
                     </button>
