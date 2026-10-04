@@ -326,6 +326,15 @@ export default function AdminSettingsPage() {
           {/* Map */}
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <h2 className="text-xl font-bold p-6 pb-3">Campus Layout Reference</h2>
+              <p className="px-6 text-sm text-gray-500 mb-3">
+                Use this as a reference for the real campus layout while pinning the GPS location below.
+              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/campus-map.png" alt="AFGBMTS campus map" className="w-full h-auto" />
+            </div>
+
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <h2 className="text-2xl font-bold p-8 pb-4">School Location Map</h2>
               <div id="map" className="w-full h-96" style={{ minHeight: "500px" }}></div>
               <div className="p-4 bg-blue-50 border-t border-blue-200">
@@ -337,15 +346,6 @@ export default function AdminSettingsPage() {
                   <li>✓ 🔵 Blue circle = geofence area (radius: {settings.radius}m)</li>
                 </ul>
               </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <h2 className="text-xl font-bold p-6 pb-3">Campus Layout Reference</h2>
-              <p className="px-6 text-sm text-gray-500 mb-3">
-                Use this as a reference for the real campus layout while pinning the GPS location above.
-              </p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/campus-map.png" alt="AFGBMTS campus map" className="w-full h-auto" />
             </div>
           </div>
         </div>
