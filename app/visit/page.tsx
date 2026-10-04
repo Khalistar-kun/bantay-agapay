@@ -5,7 +5,7 @@ import { RegistrationForm } from "@/components/visitor/RegistrationForm"
 import { FaceDetection } from "@/components/visitor/FaceDetection"
 import type { VisitorRegistrationInput } from "@/lib/validation/schemas"
 import { useRouter } from "next/navigation"
-import { getMockLocation, isWithinGeofence, ensureGeofenceSettingsLoaded } from "@/lib/gps/geofence"
+import { isWithinGeofence, ensureGeofenceSettingsLoaded } from "@/lib/gps/geofence"
 
 export default function VisitPage() {
   const router = useRouter()
@@ -72,22 +72,9 @@ export default function VisitPage() {
         alert(`Location verification failed. You are ${result.distance}m away from school.`)
       }
     } catch (error) {
-      // Fallback to mock location
-      const mockCoords = getMockLocation()
-      const result = isWithinGeofence(mockCoords.latitude, mockCoords.longitude)
-
-      if (result.verified) {
-        setGpsReading({
-          latitude: mockCoords.latitude,
-          longitude: mockCoords.longitude,
-          accuracy: mockCoords.accuracy,
-          distance: result.distance,
-        })
-        setLocationGranted(true)
-        setTimeout(() => setStep("review"), 800)
-      } else {
-        alert("Unable to verify location. Please try again.")
-      }
+      setGpsReading(null)
+      setLocationGranted(false)
+      alert("Unable to verify your location. Enable location permission and GPS, then try again.")
     }
   }
 

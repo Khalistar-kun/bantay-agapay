@@ -12,22 +12,9 @@ interface Destination {
   building: string
 }
 
-// Mock destinations for testing
-const MOCK_DESTINATIONS: Destination[] = [
-  { id: "1", name: "Principal's Office", building: "Administration Building" },
-  { id: "2", name: "Registrar", building: "Administration Building" },
-  { id: "3", name: "Guidance Office", building: "Administration Building" },
-  { id: "4", name: "Clinic", building: "Medical Building" },
-  { id: "5", name: "Faculty Room", building: "Main Academic Building" },
-  { id: "6", name: "Cashier", building: "Administration Building" },
-  { id: "7", name: "Senior High School Department", building: "SHS Building" },
-  { id: "8", name: "Cafeteria", building: "Cafeteria Building" },
-]
-
 export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistrationInput & { sessionToken: string }) => void }) {
   const [destinations, setDestinations] = useState<Destination[]>([])
   const [loading, setLoading] = useState(true)
-  const [usingMockData, setUsingMockData] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const {
     register,
@@ -46,20 +33,14 @@ export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistratio
         if (error) {
           console.error("Error loading destinations from database:", error)
           setLoadError(error.message)
-          setUsingMockData(true)
-          setDestinations(MOCK_DESTINATIONS)
         } else if (data && data.length > 0) {
           setDestinations(data)
         } else {
           setLoadError("No destinations found in database")
-          setUsingMockData(true)
-          setDestinations(MOCK_DESTINATIONS)
         }
       } catch (error: any) {
-        console.error("Error loading destinations, using mock data:", error)
+        console.error("Error loading destinations:", error)
         setLoadError(error?.message || "Unknown error")
-        setUsingMockData(true)
-        setDestinations(MOCK_DESTINATIONS)
       } finally {
         setLoading(false)
       }
@@ -75,11 +56,11 @@ export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistratio
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {usingMockData && (
+      {loadError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-800 font-semibold text-sm">⚠️ Could not load destinations from database</p>
           <p className="text-red-700 text-xs mt-1">{loadError}</p>
-          <p className="text-red-700 text-xs mt-1">Using placeholder list — registration will fail if you submit. Please notify the administrator.</p>
+          <p className="text-red-700 text-xs mt-1">Registration is unavailable until the school destinations can be loaded. Please notify the administrator.</p>
         </div>
       )}
 
@@ -155,7 +136,7 @@ export function RegistrationForm({ onNext }: { onNext: (data: VisitorRegistratio
 
       <button
         type="submit"
-        disabled={isSubmitting || loading}
+        disabled={isSubmitting || loading || !!loadError || destinations.length === 0}
         className="w-full bg-primary-600 text-white font-semibold py-3 rounded-lg hover:bg-primary-700 transition disabled:opacity-50"
       >
         {isSubmitting ? "Processing..." : "Continue to Face Verification"}

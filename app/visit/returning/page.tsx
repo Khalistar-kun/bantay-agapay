@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { FaceDetection } from "@/components/visitor/FaceDetection"
-import { getMockLocation, isWithinGeofence, ensureGeofenceSettingsLoaded } from "@/lib/gps/geofence"
+import { isWithinGeofence, ensureGeofenceSettingsLoaded } from "@/lib/gps/geofence"
 import Link from "next/link"
 
 export const dynamic = "force-dynamic"
@@ -99,33 +99,22 @@ export default function ReturningVisitorPage() {
       const result = isWithinGeofence(position.coords.latitude, position.coords.longitude)
 
       if (result.verified) {
-        setGpsReading({
+        const reading = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy,
           distance: result.distance,
-        })
+        }
+        setGpsReading(reading)
         setLocationGranted(true)
-        setTimeout(() => handleSubmit(), 800)
+        setTimeout(() => handleSubmit(reading), 800)
       } else {
         alert(`Location verification failed. You are ${result.distance}m away from school.`)
       }
     } catch (err) {
-      const mockCoords = getMockLocation()
-      const result = isWithinGeofence(mockCoords.latitude, mockCoords.longitude)
-
-      if (result.verified) {
-        setGpsReading({
-          latitude: mockCoords.latitude,
-          longitude: mockCoords.longitude,
-          accuracy: mockCoords.accuracy,
-          distance: result.distance,
-        })
-        setLocationGranted(true)
-        setTimeout(() => handleSubmit(), 800)
-      } else {
-        alert("Unable to verify location. Please try again.")
-      }
+      setGpsReading(null)
+      setLocationGranted(false)
+      alert("Unable to verify your location. Enable location permission and GPS, then try again.")
     }
   }
 
@@ -134,7 +123,7 @@ export default function ReturningVisitorPage() {
     setStep("gps")
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (verifiedReading: NonNullable<typeof gpsReading>) => {
     setError(null)
     setLoading(true)
 
@@ -142,7 +131,7 @@ export default function ReturningVisitorPage() {
       const response = await fetch("/api/visit/returning", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneNumber, destinationId, purpose, facePhoto, gpsReading }),
+        body: JSON.stringify({ phoneNumber, destinationId, purpose, facePhoto, gpsReading: verifiedReading }),
       })
 
       const data = await response.json()

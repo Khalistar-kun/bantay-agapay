@@ -4,8 +4,9 @@ const fs = require('fs');
 const path = require('path');
 
 async function runMigration() {
-  const supabaseUrl = 'https://quvvyilbzkbazxpsvins.supabase.co';
-  const serviceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1dnZ5aWxiemtiYXp4cHN2aW5zIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MTAzODYwNywiZXhwIjoyMTA2NjE0NjA3fQ.kqL0rAGz6ZMe4Akin5NQ42-8SjhTrahtw0ceL70-j7k';
+  require('dotenv').config({ path: '.env.local', quiet: true });
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   console.log('🚀 Starting database migration...');
   console.log(`📍 Supabase URL: ${supabaseUrl}`);
