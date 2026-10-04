@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
 
 interface PendingVisitor {
@@ -24,9 +23,12 @@ export default function SecurityDashboard() {
   useEffect(() => {
     const fetchPending = async () => {
       try {
-        const supabase = createClient()
-        const { data } = await supabase.rpc("get_pending_visitors")
-        const visitors: PendingVisitor[] = data || []
+        const res = await fetch("/api/security/pending")
+        if (!res.ok) {
+          console.error("Error fetching pending visitors:", await res.text())
+          return
+        }
+        const { visitors }: { visitors: PendingVisitor[] } = await res.json()
         setPendingVisitors(visitors)
 
         const toFetch = visitors.filter((v) => v.face_reference_path && !photoUrls[v.id])

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
 
 interface VisitDetail {
   id: string
@@ -34,17 +33,14 @@ export default function SecurityReviewPage() {
   useEffect(() => {
     const fetchVisit = async () => {
       try {
-        const supabase = createClient()
-        const { data, error } = await supabase.rpc("get_visit_detail", { visit_id: visitId } as never)
+        const res = await fetch(`/api/security/visit/${visitId}`)
 
-        const rows = data as VisitDetail[] | null
-
-        if (error || !rows || rows.length === 0) {
+        if (!res.ok) {
           setError("Visitor record not found")
           return
         }
 
-        const detail: VisitDetail = rows[0]
+        const { visit: detail }: { visit: VisitDetail } = await res.json()
         setVisit(detail)
 
         if (detail.face_reference_path) {
