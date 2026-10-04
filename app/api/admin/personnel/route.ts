@@ -18,7 +18,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, phone_number, role, active, created_at, photo_path")
+    .select("id, full_name, phone_number, role, active, status, created_at, photo_path")
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
     phone_number: normalized,
     password_hash: passwordHash,
     role,
+    status: "APPROVED",
     active: true,
   })
 
@@ -89,7 +90,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { profileId, role, active } = await request.json()
+  const { profileId, role, active, status } = await request.json()
 
   if (!profileId) {
     return NextResponse.json({ error: "Missing profileId" }, { status: 400 })
@@ -99,9 +100,14 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 })
   }
 
+  if (status && status !== "APPROVED" && status !== "REJECTED" && status !== "PENDING") {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 })
+  }
+
   const update: Record<string, unknown> = {}
   if (role !== undefined) update.role = role
   if (active !== undefined) update.active = active
+  if (status !== undefined) update.status = status
 
   const { error } = await supabase.from("profiles").update(update).eq("id", profileId)
 
@@ -109,7 +115,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  if (active === false) {
+  if (active === false || status === "REJECTED") {
     await supabase.from("staff_sessions").delete().eq("profile_id", profileId)
   }
 

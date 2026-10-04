@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("id, full_name, role, active, password_hash")
+      .select("id, full_name, role, active, status, password_hash")
       .eq("phone_number", normalized)
       .single()
 
@@ -29,14 +29,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid phone number or password" }, { status: 401 })
     }
 
-    if (!profile.active) {
-      return NextResponse.json({ error: "This account has been deactivated" }, { status: 403 })
-    }
-
     const passwordMatches = await bcrypt.compare(password, profile.password_hash)
 
     if (!passwordMatches) {
       return NextResponse.json({ error: "Invalid phone number or password" }, { status: 401 })
+    }
+
+    if (!profile.active) {
+      return NextResponse.json({ error: "This account has been deactivated" }, { status: 403 })
+    }
+
+    if (profile.status === "PENDING") {
+      return NextResponse.json(
+        { error: "Your account is awaiting administrator approval. Please check back later." },
+        { status: 403 }
+      )
+    }
+
+    if (profile.status === "REJECTED") {
+      return NextResponse.json({ error: "Your registration was not approved. Contact your administrator." }, { status: 403 })
     }
 
     const sessionToken = crypto.randomBytes(32).toString("hex")

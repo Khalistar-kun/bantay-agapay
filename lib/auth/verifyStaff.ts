@@ -22,11 +22,12 @@ export async function verifyStaff(): Promise<{ profileId: string; role: "ADMIN" 
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, role, active")
+    .select("id, role, active, status")
     .eq("id", session.profile_id)
     .single()
 
   if (!profile || !profile.active) return null
+  if (profile.status !== "APPROVED") return null
   if (profile.role !== "ADMIN" && profile.role !== "SECURITY") return null
 
   return { profileId: profile.id, role: profile.role }

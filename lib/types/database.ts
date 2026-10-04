@@ -10,6 +10,7 @@ export type Database = {
           password_hash: string | null
           photo_path: string | null
           role: "ADMIN" | "SECURITY" | null
+          status: "PENDING" | "APPROVED" | "REJECTED"
           active: boolean
           created_at: string
           updated_at: string
@@ -120,6 +121,19 @@ export type Database = {
         }
         Insert: Omit<Database["public"]["Tables"]["staff_sessions"]["Row"], "created_at">
         Update: Partial<Database["public"]["Tables"]["staff_sessions"]["Row"]>
+      }
+      staff_invites: {
+        Row: {
+          token: string
+          role: "ADMIN" | "SECURITY"
+          created_by: string | null
+          used_at: string | null
+          used_by_profile_id: string | null
+          created_at: string
+          expires_at: string
+        }
+        Insert: Omit<Database["public"]["Tables"]["staff_invites"]["Row"], "created_at">
+        Update: Partial<Database["public"]["Tables"]["staff_invites"]["Row"]>
       }
     }
     Views: {}
