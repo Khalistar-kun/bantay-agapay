@@ -85,6 +85,8 @@ export type Database = {
           gps_status: "GPS_VERIFIED" | "OUTSIDE_AUTHORIZED_AREA" | "GPS_FAILED" | null
           gps_accuracy: number | null
           distance_from_school: number | null
+          latitude: number | null
+          longitude: number | null
           verified_at: string
         }
         Insert: Omit<Database["public"]["Tables"]["verification_logs"]["Row"], "id">
@@ -192,6 +194,17 @@ export type Database = {
           status: string
           registration_time: string
           face_reference_path: string | null
+        }[]
+      }
+      get_visit_verification: {
+        Args: { p_visit_id: string }
+        Returns: {
+          gps_status: string | null
+          gps_accuracy: number | null
+          distance_from_school: number | null
+          latitude: number | null
+          longitude: number | null
+          verified_at: string
         }[]
       }
     }

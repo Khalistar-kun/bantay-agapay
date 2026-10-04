@@ -16,7 +16,9 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
   const [headPosition, setHeadPosition] = useState<"center" | "left" | "right">("center")
   const [completedMoves, setCompletedMoves] = useState<("left" | "right")[]>([])
   const [verificationComplete, setVerificationComplete] = useState(false)
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null)
   const detectionTimeoutRef = useRef<NodeJS.Timeout>()
+  const scanningRef = useRef(true)
 
   useEffect(() => {
     const startCamera = async () => {
@@ -49,6 +51,7 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
         clearTimeout(detectionTimeoutRef.current)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onError])
 
   const detectFace = () => {
@@ -59,11 +62,12 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
     if (!context) return
 
     const video = videoRef.current
-    let consecutiveFaceFrames = 0
     let consecutiveLeftFrames = 0
     let consecutiveRightFrames = 0
 
     const drawFrame = () => {
+      if (!scanningRef.current) return
+
       context.drawImage(video, 0, 0, canvas.width, canvas.height)
 
       // Simple face detection simulation
@@ -97,7 +101,6 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
       const faceConfidence = faceScore / (canvas.width * canvas.height)
 
       if (faceConfidence > 0.15) {
-        consecutiveFaceFrames++
         setFaceDetected(true)
 
         // Auto-detect head position
@@ -107,8 +110,8 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
           setHeadPosition("left")
 
           // Auto-detect when looking left for 15 frames (~500ms)
-          if (consecutiveLeftFrames > 15 && !completedMoves.includes("left")) {
-            setCompletedMoves((prev) => [...prev, "left"])
+          if (consecutiveLeftFrames > 15) {
+            setCompletedMoves((prev) => (prev.includes("left") ? prev : [...prev, "left"]))
             setInstruction("Great! Now turning right...")
             consecutiveLeftFrames = 0
           }
@@ -118,8 +121,8 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
           setHeadPosition("right")
 
           // Auto-detect when looking right for 15 frames (~500ms)
-          if (consecutiveRightFrames > 15 && !completedMoves.includes("right")) {
-            setCompletedMoves((prev) => [...prev, "right"])
+          if (consecutiveRightFrames > 15) {
+            setCompletedMoves((prev) => (prev.includes("right") ? prev : [...prev, "right"]))
             setInstruction("Perfect! Verification complete...")
             consecutiveRightFrames = 0
           }
@@ -130,7 +133,6 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
         }
       } else {
         setFaceDetected(false)
-        consecutiveFaceFrames = 0
         consecutiveLeftFrames = 0
         consecutiveRightFrames = 0
       }
@@ -141,18 +143,18 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
     drawFrame()
   }
 
-  // Auto-submit when both movements detected
+  // Capture the photo and pause for review once both movements are detected
   useEffect(() => {
     if (completedMoves.length === 2 && !verificationComplete) {
       setVerificationComplete(true)
-      setInstruction("✓ Face verified! Processing...")
+      scanningRef.current = false
+      setInstruction("✓ Face verified!")
 
       detectionTimeoutRef.current = setTimeout(() => {
-        const photoDataUrl = capturePhoto()
-        onSuccess(photoDataUrl)
-      }, 1500)
+        setCapturedPhoto(capturePhoto())
+      }, 800)
     }
-  }, [completedMoves, verificationComplete, onSuccess])
+  }, [completedMoves, verificationComplete])
 
   const capturePhoto = (): string => {
     const canvas = document.createElement("canvas")
@@ -168,6 +170,23 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
     return canvas.toDataURL("image/jpeg", 0.85)
   }
 
+  const handleRetake = () => {
+    setCapturedPhoto(null)
+    setVerificationComplete(false)
+    setCompletedMoves([])
+    setFaceDetected(false)
+    setHeadPosition("center")
+    setInstruction("Look at the camera")
+    scanningRef.current = true
+    requestAnimationFrame(() => detectFace())
+  }
+
+  const handleConfirm = () => {
+    if (capturedPhoto) {
+      onSuccess(capturedPhoto)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Instructions */}
@@ -176,22 +195,27 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
           verificationComplete ? "bg-green-50 text-green-900" : faceDetected ? "bg-blue-50 text-blue-900" : "bg-yellow-50 text-yellow-900"
         }`}
       >
-        {loading ? "Initializing camera..." : instruction}
+        {loading ? "Initializing camera..." : capturedPhoto ? "Review your photo" : instruction}
       </div>
 
-      {/* Video Feed */}
+      {/* Video Feed / Captured Photo Preview */}
       <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video">
-        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+        {capturedPhoto ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={capturedPhoto} alt="Captured face" className="w-full h-full object-cover" />
+        ) : (
+          <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+        )}
 
         {/* Face Detection Outline */}
-        {faceDetected && !verificationComplete && (
+        {faceDetected && !verificationComplete && !capturedPhoto && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="w-32 h-40 border-4 border-green-500 rounded-2xl animate-pulse" />
           </div>
         )}
 
-        {/* Verification Complete */}
-        {verificationComplete && (
+        {/* Verification Complete (before photo preview appears) */}
+        {verificationComplete && !capturedPhoto && (
           <div className="absolute inset-0 flex items-center justify-center bg-green-500/20 pointer-events-none">
             <div className="text-center">
               <p className="text-4xl text-green-400 font-bold">✓</p>
@@ -201,7 +225,7 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
         )}
 
         {/* No Face Detected */}
-        {!loading && !faceDetected && !verificationComplete && (
+        {!loading && !faceDetected && !verificationComplete && !capturedPhoto && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
             <div className="text-white text-center">
               <p className="text-lg font-semibold">No face detected</p>
@@ -211,7 +235,7 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
         )}
 
         {/* Head Position Indicator */}
-        {faceDetected && !verificationComplete && (
+        {faceDetected && !verificationComplete && !capturedPhoto && (
           <div className="absolute top-4 right-4 bg-black/50 text-white px-3 py-1 rounded text-sm font-semibold">
             {headPosition === "left" ? "← Looking Left" : headPosition === "right" ? "Looking Right →" : "Centered"}
           </div>
@@ -221,8 +245,26 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
       {/* Hidden canvas for processing */}
       <canvas ref={canvasRef} width={640} height={480} className="hidden" />
 
+      {/* Photo Review Actions */}
+      {capturedPhoto && (
+        <div className="flex gap-3">
+          <button
+            onClick={handleRetake}
+            className="flex-1 bg-gray-200 text-gray-800 font-semibold py-3 rounded-lg hover:bg-gray-300 transition"
+          >
+            Retake Photo
+          </button>
+          <button
+            onClick={handleConfirm}
+            className="flex-1 bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition"
+          >
+            Use This Photo
+          </button>
+        </div>
+      )}
+
       {/* Movement Progress */}
-      {faceDetected && !verificationComplete && (
+      {faceDetected && !verificationComplete && !capturedPhoto && (
         <div className="bg-blue-50 rounded-lg p-4">
           <p className="text-sm font-semibold text-gray-900 mb-3">Face verification progress:</p>
           <div className="flex gap-4">

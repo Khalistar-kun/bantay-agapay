@@ -48,7 +48,7 @@ async function uploadFacePhoto(visitorId: string, facePhoto: string): Promise<st
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { fullName, contactNumber, visitorType, purpose, destinationId, facePhoto } = body
+    const { fullName, contactNumber, visitorType, purpose, destinationId, facePhoto, gpsReading } = body
 
     if (!fullName || !contactNumber || !visitorType || !purpose || !destinationId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
@@ -103,19 +103,39 @@ export async function POST(request: NextRequest) {
     const referenceNumber = generateReferenceNumber()
     const token = generateToken()
 
-    const { error: visitError } = await supabase.from("visits").insert({
-      visitor_id: visitorId,
-      destination_id: destinationId,
-      reference_number: referenceNumber,
-      purpose: purpose,
-      status: "PENDING",
-      registration_time: new Date().toISOString(),
-      public_token: token,
-    })
+    const { data: newVisit, error: visitError } = await supabase
+      .from("visits")
+      .insert({
+        visitor_id: visitorId,
+        destination_id: destinationId,
+        reference_number: referenceNumber,
+        purpose: purpose,
+        status: "PENDING",
+        registration_time: new Date().toISOString(),
+        public_token: token,
+      })
+      .select("id")
+      .single()
 
-    if (visitError) {
+    if (visitError || !newVisit) {
       console.error("Visit insert error:", visitError)
-      return NextResponse.json({ error: `Failed to create visit record: ${visitError.message}` }, { status: 500 })
+      return NextResponse.json({ error: `Failed to create visit record: ${visitError?.message}` }, { status: 500 })
+    }
+
+    if (gpsReading) {
+      const { error: logError } = await supabase.from("verification_logs").insert({
+        visit_id: newVisit.id,
+        face_status: facePhoto ? "FACE_VERIFIED" : "FACE_DETECTION_FAILED",
+        gps_status: "GPS_VERIFIED",
+        gps_accuracy: gpsReading.accuracy ?? null,
+        distance_from_school: gpsReading.distance ?? null,
+        latitude: gpsReading.latitude ?? null,
+        longitude: gpsReading.longitude ?? null,
+      })
+
+      if (logError) {
+        console.error("Verification log insert error:", logError)
+      }
     }
 
     return NextResponse.json({

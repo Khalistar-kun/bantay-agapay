@@ -14,6 +14,12 @@ export default function VisitPage() {
   const [faceError, setFaceError] = useState<string | null>(null)
   const [locationGranted, setLocationGranted] = useState(false)
   const [facePhoto, setFacePhoto] = useState<string | null>(null)
+  const [gpsReading, setGpsReading] = useState<{
+    latitude: number
+    longitude: number
+    accuracy: number
+    distance: number
+  } | null>(null)
 
   const handleRegistrationNext = (data: VisitorRegistrationInput & { sessionToken: string }) => {
     setFormData(data)
@@ -54,6 +60,12 @@ export default function VisitPage() {
       const result = isWithinGeofence(position.coords.latitude, position.coords.longitude)
 
       if (result.verified) {
+        setGpsReading({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          distance: result.distance,
+        })
         setLocationGranted(true)
         setTimeout(() => setStep("review"), 800)
       } else {
@@ -65,6 +77,12 @@ export default function VisitPage() {
       const result = isWithinGeofence(mockCoords.latitude, mockCoords.longitude)
 
       if (result.verified) {
+        setGpsReading({
+          latitude: mockCoords.latitude,
+          longitude: mockCoords.longitude,
+          accuracy: mockCoords.accuracy,
+          distance: result.distance,
+        })
         setLocationGranted(true)
         setTimeout(() => setStep("review"), 800)
       } else {
@@ -88,6 +106,7 @@ export default function VisitPage() {
           destinationId: formData.destinationId,
           sessionToken: formData.sessionToken,
           facePhoto,
+          gpsReading,
         }),
       })
 

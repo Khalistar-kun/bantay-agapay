@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 
@@ -17,18 +17,36 @@ interface VisitDetail {
   face_reference_path: string | null
 }
 
+interface Verification {
+  gps_status: string | null
+  gps_accuracy: number | null
+  distance_from_school: number | null
+  latitude: number | null
+  longitude: number | null
+  verified_at: string
+}
+
+declare global {
+  interface Window {
+    L: any
+  }
+}
+
 export default function SecurityReviewPage() {
   const params = useParams()
   const router = useRouter()
   const visitId = params.id as string
 
   const [visit, setVisit] = useState<VisitDetail | null>(null)
+  const [verification, setVerification] = useState<Verification | null>(null)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [showDenyForm, setShowDenyForm] = useState(false)
   const [denyReason, setDenyReason] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [mapLoaded, setMapLoaded] = useState(false)
+  const mapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const fetchVisit = async () => {
@@ -40,8 +58,10 @@ export default function SecurityReviewPage() {
           return
         }
 
-        const { visit: detail }: { visit: VisitDetail } = await res.json()
+        const { visit: detail, verification }: { visit: VisitDetail; verification: Verification | null } =
+          await res.json()
         setVisit(detail)
+        setVerification(verification)
 
         if (detail.face_reference_path) {
           const res = await fetch(`/api/visit/face-photo?path=${encodeURIComponent(detail.face_reference_path)}`)
@@ -60,6 +80,47 @@ export default function SecurityReviewPage() {
 
     fetchVisit()
   }, [visitId])
+
+  useEffect(() => {
+    if (!verification?.latitude || !verification?.longitude) return
+
+    const link = document.createElement("link")
+    link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+    link.rel = "stylesheet"
+    document.head.appendChild(link)
+
+    const script = document.createElement("script")
+    script.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+    script.async = true
+    script.onload = () => setMapLoaded(true)
+    document.head.appendChild(script)
+  }, [verification?.latitude, verification?.longitude])
+
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current || !verification?.latitude || !verification?.longitude) return
+
+    const L = window.L
+    if (!L) return
+
+    const map = L.map(mapRef.current, { scrollWheelZoom: false }).setView(
+      [verification.latitude, verification.longitude],
+      17
+    )
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+      maxZoom: 19,
+    }).addTo(map)
+
+    L.marker([verification.latitude, verification.longitude])
+      .addTo(map)
+      .bindPopup(`Registered here · ${verification.distance_from_school}m from school`)
+      .openPopup()
+
+    return () => {
+      map.remove()
+    }
+  }, [mapLoaded, verification])
 
   const handleApprove = async () => {
     setProcessing(true)
@@ -201,6 +262,26 @@ export default function SecurityReviewPage() {
               <p className="font-medium">{visit.purpose}</p>
             </div>
           </div>
+        </div>
+
+        {/* Registration Location */}
+        <div className="bg-white rounded-lg shadow-md p-6 mt-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Registration Location</h3>
+          {verification?.latitude && verification?.longitude ? (
+            <>
+              <div ref={mapRef} className="w-full h-64 rounded-lg border mb-3" />
+              <div className="flex gap-6 text-sm text-gray-600">
+                <p>
+                  <strong>Distance from school:</strong> {verification.distance_from_school}m
+                </p>
+                <p>
+                  <strong>GPS accuracy:</strong> ±{Math.round(verification.gps_accuracy || 0)}m
+                </p>
+              </div>
+            </>
+          ) : (
+            <p className="text-gray-500 text-sm">No GPS location was recorded for this registration.</p>
+          )}
         </div>
 
         {/* Actions */}

@@ -150,8 +150,15 @@ export default function DirectionsPage() {
           </div>
 
           <a
-            href="/"
+            href={`/visit/status/${token}`}
             className="w-full block text-center bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition"
+          >
+            ← Back to My QR Code
+          </a>
+
+          <a
+            href="/"
+            className="w-full block text-center bg-gray-200 text-gray-800 font-semibold py-3 rounded-lg hover:bg-gray-300 transition"
           >
             Return Home
           </a>

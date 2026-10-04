@@ -27,5 +27,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Visit not found" }, { status: 404 })
   }
 
-  return NextResponse.json({ visit: data[0] })
+  const { data: verification } = await supabase.rpc("get_visit_verification", { p_visit_id: id })
+
+  return NextResponse.json({ visit: data[0], verification: verification?.[0] || null })
 }
