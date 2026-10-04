@@ -26,8 +26,6 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import androidx.webkit.WebViewAssetLoader;
-import java.util.ArrayList;
-import java.util.List;
 
 public class MainActivity extends Activity {
     private static final String CONNECT_PAGE = "https://appassets.androidplatform.net/assets/connect.html";
