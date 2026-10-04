@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 
@@ -12,15 +12,12 @@ interface DirectionsInfo {
   room: string | null
   landmark: string | null
   directions: string | null
-  latitude: number | null
-  longitude: number | null
+  map_x: number | null
+  map_y: number | null
 }
 
-declare global {
-  interface Window {
-    L: any
-  }
-}
+const MAP_WIDTH = 2048
+const MAP_HEIGHT = 1536
 
 export default function DirectionsPage() {
   const params = useParams()
@@ -29,8 +26,6 @@ export default function DirectionsPage() {
   const [info, setInfo] = useState<DirectionsInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mapLoaded, setMapLoaded] = useState(false)
-  const mapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const fetchDirections = async () => {
@@ -57,45 +52,6 @@ export default function DirectionsPage() {
     if (token) fetchDirections()
   }, [token])
 
-  useEffect(() => {
-    if (!info?.latitude || !info?.longitude) return
-
-    const link = document.createElement("link")
-    link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
-    link.rel = "stylesheet"
-    document.head.appendChild(link)
-
-    const script = document.createElement("script")
-    script.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
-    script.async = true
-    script.onload = () => setMapLoaded(true)
-    document.head.appendChild(script)
-  }, [info?.latitude, info?.longitude])
-
-  useEffect(() => {
-    if (!mapLoaded || !mapRef.current || !info?.latitude || !info?.longitude) return
-
-    const L = window.L
-    if (!L) return
-
-    const map = L.map(mapRef.current, {
-      zoomControl: true,
-      dragging: true,
-      scrollWheelZoom: false,
-    }).setView([info.latitude, info.longitude], 18)
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors",
-      maxZoom: 19,
-    }).addTo(map)
-
-    L.marker([info.latitude, info.longitude]).addTo(map).bindPopup(info.destination_name).openPopup()
-
-    return () => {
-      map.remove()
-    }
-  }, [mapLoaded, info])
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -118,7 +74,7 @@ export default function DirectionsPage() {
   }
 
   const locationParts = [info.building, info.floor, info.room].filter(Boolean)
-  const hasPin = info.latitude !== null && info.longitude !== null
+  const hasPin = info.map_x !== null && info.map_y !== null
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 py-8">
@@ -163,8 +119,22 @@ export default function DirectionsPage() {
 
           {hasPin ? (
             <div>
-              <p className="text-sm text-gray-500 mb-2">Map</p>
-              <div ref={mapRef} className="w-full h-64 rounded-lg border" />
+              <p className="text-sm text-gray-500 mb-2">Campus Map</p>
+              <div className="relative w-full border rounded-lg overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/campus-map.png" alt="Campus map" className="w-full h-auto" />
+                <div
+                  className="absolute w-6 h-6 -ml-3 -mt-6 pointer-events-none"
+                  style={{
+                    left: `${(info.map_x! / MAP_WIDTH) * 100}%`,
+                    top: `${(info.map_y! / MAP_HEIGHT) * 100}%`,
+                  }}
+                >
+                  <div className="w-6 h-6 bg-red-600 rounded-full border-2 border-white shadow-lg animate-pulse flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full" />
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="bg-gray-100 rounded-lg p-6 text-center text-gray-500 text-sm">

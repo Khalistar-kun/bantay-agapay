@@ -13,26 +13,21 @@ interface Destination {
   description: string | null
   landmark: string | null
   directions: string | null
-  latitude: number | null
-  longitude: number | null
+  map_x: number | null
+  map_y: number | null
   active: boolean
 }
 
-declare global {
-  interface Window {
-    L: any
-  }
-}
+const MAP_WIDTH = 2048
+const MAP_HEIGHT = 1536
 
 export default function DestinationsPage() {
   const [destinations, setDestinations] = useState<Destination[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
-  const [mapLoaded, setMapLoaded] = useState(false)
   const [pinningId, setPinningId] = useState<string | null>(null)
-  const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null)
-  const mapInstanceRef = useRef<any>(null)
-  const mapMarkerRef = useRef<any>(null)
+  const [pinCoords, setPinCoords] = useState<{ x: number; y: number } | null>(null)
+  const mapImgRef = useRef<HTMLImageElement>(null)
 
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState("")
@@ -45,19 +40,6 @@ export default function DestinationsPage() {
   const [directions, setDirections] = useState("")
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const link = document.createElement("link")
-    link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
-    link.rel = "stylesheet"
-    document.head.appendChild(link)
-
-    const script = document.createElement("script")
-    script.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
-    script.async = true
-    script.onload = () => setMapLoaded(true)
-    document.head.appendChild(script)
-  }, [])
 
   const fetchDestinations = async () => {
     try {
@@ -132,51 +114,22 @@ export default function DestinationsPage() {
 
   const openPinMap = (d: Destination) => {
     setPinningId(d.id)
-    setPinCoords(
-      d.latitude && d.longitude ? { lat: d.latitude, lng: d.longitude } : { lat: 14.737, lng: 120.9728 }
-    )
+    setPinCoords(d.map_x !== null && d.map_y !== null ? { x: d.map_x, y: d.map_y } : null)
   }
 
-  useEffect(() => {
-    if (!pinningId || !mapLoaded || !pinCoords) return
+  const handleMapClick = (e: React.MouseEvent<HTMLImageElement>) => {
+    const img = mapImgRef.current
+    if (!img) return
 
-    const L = window.L
-    if (!L) return
+    const rect = img.getBoundingClientRect()
+    const clickXRatio = (e.clientX - rect.left) / rect.width
+    const clickYRatio = (e.clientY - rect.top) / rect.height
 
-    const container = document.getElementById(`pin-map-${pinningId}`)
-    if (!container) return
-
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove()
-    }
-
-    const map = L.map(container).setView([pinCoords.lat, pinCoords.lng], 18)
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors",
-      maxZoom: 19,
-    }).addTo(map)
-
-    const marker = L.marker([pinCoords.lat, pinCoords.lng], { draggable: true }).addTo(map)
-
-    marker.on("dragend", () => {
-      const pos = marker.getLatLng()
-      setPinCoords({ lat: pos.lat, lng: pos.lng })
+    setPinCoords({
+      x: Math.round(clickXRatio * MAP_WIDTH),
+      y: Math.round(clickYRatio * MAP_HEIGHT),
     })
-
-    map.on("click", (e: any) => {
-      marker.setLatLng(e.latlng)
-      setPinCoords({ lat: e.latlng.lat, lng: e.latlng.lng })
-    })
-
-    mapInstanceRef.current = map
-    mapMarkerRef.current = marker
-
-    return () => {
-      map.remove()
-      mapInstanceRef.current = null
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pinningId, mapLoaded])
+  }
 
   const handleSavePin = async (id: string) => {
     if (!pinCoords) return
@@ -185,7 +138,7 @@ export default function DestinationsPage() {
       const res = await fetch("/api/admin/destinations", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, latitude: pinCoords.lat, longitude: pinCoords.lng }),
+        body: JSON.stringify({ id, map_x: pinCoords.x, map_y: pinCoords.y }),
       })
 
       if (res.ok) {
@@ -216,7 +169,7 @@ export default function DestinationsPage() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Destinations</h2>
-            <p className="text-gray-600">Manage rooms and offices visitors can visit</p>
+            <p className="text-gray-600">Manage campus buildings visitors can visit</p>
           </div>
           <button
             onClick={() => setShowForm((v) => !v)}
@@ -336,7 +289,7 @@ export default function DestinationsPage() {
                       {[d.building, d.floor, d.room].filter(Boolean).join(" · ") || "No location details"}
                     </p>
                     <p className="text-xs mt-1">
-                      {d.latitude && d.longitude ? (
+                      {d.map_x !== null && d.map_y !== null ? (
                         <span className="text-green-700">📍 Location pinned</span>
                       ) : (
                         <span className="text-yellow-700">⚠ No map location set</span>
@@ -369,15 +322,36 @@ export default function DestinationsPage() {
 
                 {pinningId === d.id && (
                   <div className="px-6 pb-6">
-                    <p className="text-sm text-gray-600 mb-2">Click or drag the pin to set this destination's exact location.</p>
-                    <div id={`pin-map-${d.id}`} className="w-full h-64 rounded-lg border" />
+                    <p className="text-sm text-gray-600 mb-2">Click on the map to set this destination's marker position.</p>
+                    <div className="relative w-full border rounded-lg overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        ref={mapImgRef}
+                        src="/campus-map.png"
+                        alt="Campus map"
+                        onClick={handleMapClick}
+                        className="w-full h-auto cursor-crosshair select-none"
+                        draggable={false}
+                      />
+                      {pinCoords && (
+                        <div
+                          className="absolute w-5 h-5 -ml-2.5 -mt-5 pointer-events-none"
+                          style={{
+                            left: `${(pinCoords.x / MAP_WIDTH) * 100}%`,
+                            top: `${(pinCoords.y / MAP_HEIGHT) * 100}%`,
+                          }}
+                        >
+                          <div className="w-5 h-5 bg-red-600 rounded-full border-2 border-white shadow-lg animate-pulse" />
+                        </div>
+                      )}
+                    </div>
                     <div className="flex items-center justify-between mt-3">
                       <p className="text-xs text-gray-500">
-                        {pinCoords ? `${pinCoords.lat.toFixed(5)}, ${pinCoords.lng.toFixed(5)}` : ""}
+                        {pinCoords ? `x: ${pinCoords.x}, y: ${pinCoords.y}` : "Click the map to place a marker"}
                       </p>
                       <button
                         onClick={() => handleSavePin(d.id)}
-                        disabled={updating === d.id}
+                        disabled={updating === d.id || !pinCoords}
                         className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 text-sm font-semibold"
                       >
                         {updating === d.id ? "Saving..." : "Save Location"}

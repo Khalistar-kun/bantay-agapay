@@ -65,7 +65,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { id, active, latitude, longitude } = await request.json()
+  const { id, active, map_x, map_y } = await request.json()
 
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 })
@@ -73,8 +73,8 @@ export async function PATCH(request: NextRequest) {
 
   const update: Record<string, unknown> = {}
   if (active !== undefined) update.active = active
-  if (latitude !== undefined) update.latitude = latitude
-  if (longitude !== undefined) update.longitude = longitude
+  if (map_x !== undefined) update.map_x = map_x
+  if (map_y !== undefined) update.map_y = map_y
 
   const { error } = await supabase.from("destinations").update(update).eq("id", id)
 

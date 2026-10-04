@@ -175,8 +175,8 @@ export type Database = {
           room: string | null
           landmark: string | null
           directions: string | null
-          latitude: number | null
-          longitude: number | null
+          map_x: number | null
+          map_y: number | null
         }[]
       }
       get_visit_detail: {
