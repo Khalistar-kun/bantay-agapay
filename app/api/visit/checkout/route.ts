@@ -14,16 +14,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { visitId } = await request.json()
+  const { visitId, token } = await request.json()
 
-  if (!visitId) {
-    return NextResponse.json({ error: "Missing visitId" }, { status: 400 })
+  if (!visitId && !token) {
+    return NextResponse.json({ error: "Missing visitId or token" }, { status: 400 })
+  }
+
+  let query = supabase.from("visits").select("id, status, visitor_id").eq("status", "INSIDE")
+  query = visitId ? query.eq("id", visitId) : query.eq("public_token", token)
+
+  const { data: visit, error: findError } = await query.single()
+
+  if (findError || !visit) {
+    return NextResponse.json(
+      { error: "No active visit found for this code. The visitor may already be checked out." },
+      { status: 404 }
+    )
   }
 
   const { error } = await supabase
     .from("visits")
     .update({ status: "EXITED", check_out: new Date().toISOString() })
-    .eq("id", visitId)
+    .eq("id", visit.id)
     .eq("status", "INSIDE")
 
   if (error) {
@@ -31,5 +43,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true })
+  const { data: visitor } = await supabase.from("visitors").select("full_name").eq("id", visit.visitor_id).single()
+
+  return NextResponse.json({ success: true, visitorName: visitor?.full_name || "Visitor" })
 }

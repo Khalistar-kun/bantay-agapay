@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import QRCode from "qrcode"
 
 interface VisitStatus {
   status: "PENDING" | "INSIDE" | "EXITED" | "DENIED"
@@ -22,6 +23,7 @@ export default function VisitStatusPage() {
   const [visitStatus, setVisitStatus] = useState<VisitStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -72,6 +74,14 @@ export default function VisitStatusPage() {
       return () => clearInterval(interval)
     }
   }, [token])
+
+  useEffect(() => {
+    if (visitStatus?.status === "INSIDE" && qrCanvasRef.current) {
+      QRCode.toCanvas(qrCanvasRef.current, token, { width: 200, margin: 2 }, (err) => {
+        if (err) console.error("QR render error:", err)
+      })
+    }
+  }, [visitStatus?.status, token])
 
   if (loading) {
     return (
@@ -156,9 +166,39 @@ export default function VisitStatusPage() {
 
             <a
               href={`/visit/directions/${token}`}
-              className="w-full block text-center bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition"
+              className="w-full block text-center bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition mb-6"
             >
               View Campus Map & Directions
+            </a>
+
+            <div className="border-t pt-6 text-center">
+              <p className="text-sm text-gray-600 mb-3">
+                When leaving, show this QR code to security for checkout
+              </p>
+              <canvas ref={qrCanvasRef} className="mx-auto border rounded-lg p-2" />
+            </div>
+          </div>
+        )}
+
+        {visitStatus?.status === "EXITED" && (
+          <div className="bg-white p-8 rounded-lg shadow-md">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-200 mb-4">
+                <span className="text-2xl">👋</span>
+              </div>
+              <h1 className="text-2xl font-bold text-gray-700">Checked Out</h1>
+              <p className="text-gray-600 mt-2">Reference: {refNumber}</p>
+            </div>
+
+            <p className="text-center text-gray-600 text-sm mb-4">
+              Thank you for visiting AFGBMTS. Your visit has been completed.
+            </p>
+
+            <a
+              href="/"
+              className="w-full block text-center bg-gray-600 text-white font-semibold py-3 rounded-lg hover:bg-gray-700 transition"
+            >
+              Return Home
             </a>
           </div>
         )}

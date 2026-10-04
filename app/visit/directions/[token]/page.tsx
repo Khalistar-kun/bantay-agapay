@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 
@@ -12,6 +12,14 @@ interface DirectionsInfo {
   room: string | null
   landmark: string | null
   directions: string | null
+  latitude: number | null
+  longitude: number | null
+}
+
+declare global {
+  interface Window {
+    L: any
+  }
 }
 
 export default function DirectionsPage() {
@@ -21,6 +29,8 @@ export default function DirectionsPage() {
   const [info, setInfo] = useState<DirectionsInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [mapLoaded, setMapLoaded] = useState(false)
+  const mapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const fetchDirections = async () => {
@@ -47,6 +57,45 @@ export default function DirectionsPage() {
     if (token) fetchDirections()
   }, [token])
 
+  useEffect(() => {
+    if (!info?.latitude || !info?.longitude) return
+
+    const link = document.createElement("link")
+    link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+    link.rel = "stylesheet"
+    document.head.appendChild(link)
+
+    const script = document.createElement("script")
+    script.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+    script.async = true
+    script.onload = () => setMapLoaded(true)
+    document.head.appendChild(script)
+  }, [info?.latitude, info?.longitude])
+
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current || !info?.latitude || !info?.longitude) return
+
+    const L = window.L
+    if (!L) return
+
+    const map = L.map(mapRef.current, {
+      zoomControl: true,
+      dragging: true,
+      scrollWheelZoom: false,
+    }).setView([info.latitude, info.longitude], 18)
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+      maxZoom: 19,
+    }).addTo(map)
+
+    L.marker([info.latitude, info.longitude]).addTo(map).bindPopup(info.destination_name).openPopup()
+
+    return () => {
+      map.remove()
+    }
+  }, [mapLoaded, info])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -69,6 +118,7 @@ export default function DirectionsPage() {
   }
 
   const locationParts = [info.building, info.floor, info.room].filter(Boolean)
+  const hasPin = info.latitude !== null && info.longitude !== null
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 py-8">
@@ -110,6 +160,17 @@ export default function DirectionsPage() {
               )}
             </div>
           </div>
+
+          {hasPin ? (
+            <div>
+              <p className="text-sm text-gray-500 mb-2">Map</p>
+              <div ref={mapRef} className="w-full h-64 rounded-lg border" />
+            </div>
+          ) : (
+            <div className="bg-gray-100 rounded-lg p-6 text-center text-gray-500 text-sm">
+              Map location not yet configured for this destination.
+            </div>
+          )}
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-blue-800 text-sm">

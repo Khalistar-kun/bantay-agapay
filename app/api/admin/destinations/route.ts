@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { name, category, building, floor, room, description } = await request.json()
+  const { name, category, building, floor, room, description, landmark, directions, latitude, longitude } =
+    await request.json()
 
   if (!name) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 })
@@ -43,6 +44,10 @@ export async function POST(request: NextRequest) {
     floor: floor || null,
     room: room || null,
     description: description || null,
+    landmark: landmark || null,
+    directions: directions || null,
+    latitude: latitude ?? null,
+    longitude: longitude ?? null,
     active: true,
   })
 
@@ -60,13 +65,18 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { id, active } = await request.json()
+  const { id, active, latitude, longitude } = await request.json()
 
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 })
   }
 
-  const { error } = await supabase.from("destinations").update({ active }).eq("id", id)
+  const update: Record<string, unknown> = {}
+  if (active !== undefined) update.active = active
+  if (latitude !== undefined) update.latitude = latitude
+  if (longitude !== undefined) update.longitude = longitude
+
+  const { error } = await supabase.from("destinations").update(update).eq("id", id)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

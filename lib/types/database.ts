@@ -45,6 +45,8 @@ export type Database = {
           directions: string | null
           map_x: number | null
           map_y: number | null
+          latitude: number | null
+          longitude: number | null
           active: boolean
           created_at: string
           updated_at: string
@@ -173,6 +175,8 @@ export type Database = {
           room: string | null
           landmark: string | null
           directions: string | null
+          latitude: number | null
+          longitude: number | null
         }[]
       }
       get_visit_detail: {

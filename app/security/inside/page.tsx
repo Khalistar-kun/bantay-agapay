@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { QRCheckoutScanner } from "@/components/security/QRCheckoutScanner"
 
 interface InsideVisitor {
   id: string
@@ -17,6 +18,8 @@ export default function CurrentlyInsidePage() {
   const [visitors, setVisitors] = useState<InsideVisitor[]>([])
   const [loading, setLoading] = useState(true)
   const [checkingOut, setCheckingOut] = useState<string | null>(null)
+  const [showScanner, setShowScanner] = useState(false)
+  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null)
 
   const fetchInside = async () => {
     try {
@@ -73,9 +76,37 @@ export default function CurrentlyInsidePage() {
         </div>
       </nav>
 
+      {showScanner && (
+        <QRCheckoutScanner
+          onClose={() => setShowScanner(false)}
+          onCheckedOut={(visitorName) => {
+            setShowScanner(false)
+            setCheckoutNotice(`✓ ${visitorName} checked out successfully`)
+            fetchInside()
+            setTimeout(() => setCheckoutNotice(null), 4000)
+          }}
+        />
+      )}
+
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Currently Inside</h2>
-        <p className="text-gray-600 mb-8">Visitors who have been approved and are on campus</p>
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Currently Inside</h2>
+            <p className="text-gray-600">Visitors who have been approved and are on campus</p>
+          </div>
+          <button
+            onClick={() => setShowScanner(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold whitespace-nowrap"
+          >
+            📷 Scan QR to Check Out
+          </button>
+        </div>
+
+        {checkoutNotice && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-green-800 font-semibold text-center">
+            {checkoutNotice}
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-12">

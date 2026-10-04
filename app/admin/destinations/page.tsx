@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 
 interface Destination {
@@ -11,13 +11,28 @@ interface Destination {
   floor: string | null
   room: string | null
   description: string | null
+  landmark: string | null
+  directions: string | null
+  latitude: number | null
+  longitude: number | null
   active: boolean
+}
+
+declare global {
+  interface Window {
+    L: any
+  }
 }
 
 export default function DestinationsPage() {
   const [destinations, setDestinations] = useState<Destination[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [mapLoaded, setMapLoaded] = useState(false)
+  const [pinningId, setPinningId] = useState<string | null>(null)
+  const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const mapInstanceRef = useRef<any>(null)
+  const mapMarkerRef = useRef<any>(null)
 
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState("")
@@ -26,8 +41,23 @@ export default function DestinationsPage() {
   const [floor, setFloor] = useState("")
   const [room, setRoom] = useState("")
   const [description, setDescription] = useState("")
+  const [landmark, setLandmark] = useState("")
+  const [directions, setDirections] = useState("")
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const link = document.createElement("link")
+    link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+    link.rel = "stylesheet"
+    document.head.appendChild(link)
+
+    const script = document.createElement("script")
+    script.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+    script.async = true
+    script.onload = () => setMapLoaded(true)
+    document.head.appendChild(script)
+  }, [])
 
   const fetchDestinations = async () => {
     try {
@@ -56,7 +86,7 @@ export default function DestinationsPage() {
       const res = await fetch("/api/admin/destinations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, category, building, floor, room, description }),
+        body: JSON.stringify({ name, category, building, floor, room, description, landmark, directions }),
       })
 
       if (res.ok) {
@@ -66,6 +96,8 @@ export default function DestinationsPage() {
         setFloor("")
         setRoom("")
         setDescription("")
+        setLandmark("")
+        setDirections("")
         setShowForm(false)
         await fetchDestinations()
       } else {
@@ -92,6 +124,75 @@ export default function DestinationsPage() {
         await fetchDestinations()
       } else {
         alert("Failed to update destination")
+      }
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const openPinMap = (d: Destination) => {
+    setPinningId(d.id)
+    setPinCoords(
+      d.latitude && d.longitude ? { lat: d.latitude, lng: d.longitude } : { lat: 14.737, lng: 120.9728 }
+    )
+  }
+
+  useEffect(() => {
+    if (!pinningId || !mapLoaded || !pinCoords) return
+
+    const L = window.L
+    if (!L) return
+
+    const container = document.getElementById(`pin-map-${pinningId}`)
+    if (!container) return
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove()
+    }
+
+    const map = L.map(container).setView([pinCoords.lat, pinCoords.lng], 18)
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+      maxZoom: 19,
+    }).addTo(map)
+
+    const marker = L.marker([pinCoords.lat, pinCoords.lng], { draggable: true }).addTo(map)
+
+    marker.on("dragend", () => {
+      const pos = marker.getLatLng()
+      setPinCoords({ lat: pos.lat, lng: pos.lng })
+    })
+
+    map.on("click", (e: any) => {
+      marker.setLatLng(e.latlng)
+      setPinCoords({ lat: e.latlng.lat, lng: e.latlng.lng })
+    })
+
+    mapInstanceRef.current = map
+    mapMarkerRef.current = marker
+
+    return () => {
+      map.remove()
+      mapInstanceRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pinningId, mapLoaded])
+
+  const handleSavePin = async (id: string) => {
+    if (!pinCoords) return
+    setUpdating(id)
+    try {
+      const res = await fetch("/api/admin/destinations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, latitude: pinCoords.lat, longitude: pinCoords.lng }),
+      })
+
+      if (res.ok) {
+        setPinningId(null)
+        await fetchDestinations()
+      } else {
+        alert("Failed to save location")
       }
     } finally {
       setUpdating(null)
@@ -179,12 +280,32 @@ export default function DestinationsPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
+                <input
+                  type="text"
+                  value={landmark}
+                  onChange={(e) => setLandmark(e.target.value)}
+                  placeholder="e.g. Beside Guidance Office"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Directions</label>
+                <input
+                  type="text"
+                  value={directions}
+                  onChange={(e) => setDirections(e.target.value)}
+                  placeholder="Step-by-step directions visitors will read"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -207,29 +328,63 @@ export default function DestinationsPage() {
         ) : (
           <div className="bg-white rounded-lg shadow-md divide-y">
             {destinations.map((d) => (
-              <div key={d.id} className="p-6 flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-gray-900">{d.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {[d.building, d.floor, d.room].filter(Boolean).join(" · ") || "No location details"}
-                  </p>
+              <div key={d.id}>
+                <div className="p-6 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-gray-900">{d.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {[d.building, d.floor, d.room].filter(Boolean).join(" · ") || "No location details"}
+                    </p>
+                    <p className="text-xs mt-1">
+                      {d.latitude && d.longitude ? (
+                        <span className="text-green-700">📍 Location pinned</span>
+                      ) : (
+                        <span className="text-yellow-700">⚠ No map location set</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => (pinningId === d.id ? setPinningId(null) : openPinMap(d))}
+                      className="px-3 py-1 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition"
+                    >
+                      {pinningId === d.id ? "Close Map" : "Pin Location"}
+                    </button>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        d.active ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {d.active ? "Active" : "Inactive"}
+                    </span>
+                    <button
+                      onClick={() => toggleActive(d)}
+                      disabled={updating === d.id}
+                      className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+                    >
+                      {d.active ? "Deactivate" : "Activate"}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      d.active ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-600"
-                    }`}
-                  >
-                    {d.active ? "Active" : "Inactive"}
-                  </span>
-                  <button
-                    onClick={() => toggleActive(d)}
-                    disabled={updating === d.id}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
-                  >
-                    {d.active ? "Deactivate" : "Activate"}
-                  </button>
-                </div>
+
+                {pinningId === d.id && (
+                  <div className="px-6 pb-6">
+                    <p className="text-sm text-gray-600 mb-2">Click or drag the pin to set this destination's exact location.</p>
+                    <div id={`pin-map-${d.id}`} className="w-full h-64 rounded-lg border" />
+                    <div className="flex items-center justify-between mt-3">
+                      <p className="text-xs text-gray-500">
+                        {pinCoords ? `${pinCoords.lat.toFixed(5)}, ${pinCoords.lng.toFixed(5)}` : ""}
+                      </p>
+                      <button
+                        onClick={() => handleSavePin(d.id)}
+                        disabled={updating === d.id}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 text-sm font-semibold"
+                      >
+                        {updating === d.id ? "Saving..." : "Save Location"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
