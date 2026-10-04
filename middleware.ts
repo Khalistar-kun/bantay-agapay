@@ -6,7 +6,11 @@ function redirectTo(request: NextRequest, pathname: string) {
   // Next's internal request URL may be localhost behind the HTTPS tunnel.
   // Keep redirects on the host that the browser is actually using.
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host")
-  if (host && /^[a-z0-9.-]+(?::\d+)?$/i.test(host)) destination.host = host
+  if (host && /^[a-z0-9.-]+(?::\d+)?$/i.test(host)) {
+    const external = new URL(`${destination.protocol}//${host}`)
+    destination.hostname = external.hostname
+    destination.port = external.port
+  }
   destination.pathname = pathname
   destination.search = ""
   return NextResponse.redirect(destination)
