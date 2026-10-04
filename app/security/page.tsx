@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { createAuthClient } from "@/lib/supabase/auth-client"
 
 interface PendingVisitor {
   id: string
@@ -24,8 +23,7 @@ export default function SecurityDashboard() {
   const [loading, setLoading] = useState(true)
 
   const handleLogout = async () => {
-    const supabase = createAuthClient()
-    await supabase.auth.signOut()
+    await fetch("/api/auth/logout", { method: "POST" })
     router.push("/login")
   }
 

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { createAuthClient } from "@/lib/supabase/auth-client"
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -31,8 +30,7 @@ export default function AdminDashboard() {
   }, [])
 
   const handleLogout = async () => {
-    const supabase = createAuthClient()
-    await supabase.auth.signOut()
+    await fetch("/api/auth/logout", { method: "POST" })
     router.push("/login")
   }
 

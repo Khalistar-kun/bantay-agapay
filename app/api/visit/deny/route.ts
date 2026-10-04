@@ -21,15 +21,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const { data: profile } = await supabase.from("profiles").select("id").eq("auth_user_id", staff.userId).single()
-
     const { error } = await supabase
       .from("visits")
       .update({
         status: "DENIED",
         denied_at: new Date().toISOString(),
         denial_reason: reason,
-        denied_by: profile?.id ?? null,
+        denied_by: staff.profileId,
       })
       .eq("id", visitId)
 

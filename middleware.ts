@@ -1,51 +1,42 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@supabase/ssr"
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+import { createClient } from "@supabase/supabase-js"
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
-
-  const supabase = createServerClient(supabaseUrl!, supabaseKey!, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll()
-      },
-      setAll(cookiesToSet: any) {
-        cookiesToSet.forEach(({ name, value }: any) => request.cookies.set(name, value))
-        response = NextResponse.next({ request })
-        cookiesToSet.forEach(({ name, value, options }: any) => response.cookies.set(name, value, options))
-      },
-    },
-  })
-
   const isProtected = request.nextUrl.pathname.startsWith("/admin") || request.nextUrl.pathname.startsWith("/security")
 
   if (!isProtected) {
-    return response
+    return NextResponse.next()
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const token = request.cookies.get("staff_session")?.value
 
-  if (!user) {
+  if (!token) {
+    return NextResponse.redirect(new URL("/login", request.url))
+  }
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data: session } = await supabase
+    .from("staff_sessions")
+    .select("profile_id, expires_at")
+    .eq("token", token)
+    .single()
+
+  if (!session || new Date(session.expires_at) < new Date()) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, status, active")
-    .eq("auth_user_id", user.id)
+    .select("role, active")
+    .eq("id", session.profile_id)
     .single()
 
-  if (!profile || profile.status !== "APPROVED" || !profile.active) {
-    return NextResponse.redirect(new URL("/pending-approval", request.url))
+  if (!profile || !profile.active) {
+    return NextResponse.redirect(new URL("/login", request.url))
   }
 
   if (request.nextUrl.pathname.startsWith("/admin") && profile.role !== "ADMIN") {
@@ -56,7 +47,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  return response
+  return NextResponse.next()
 }
 
 export const config = {

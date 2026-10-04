@@ -5,10 +5,9 @@ import Link from "next/link"
 
 interface Personnel {
   id: string
-  full_name: string | null
-  email: string | null
-  role: "ADMIN" | "SECURITY" | null
-  status: "PENDING" | "APPROVED" | "REJECTED"
+  full_name: string
+  phone_number: string
+  role: "ADMIN" | "SECURITY"
   active: boolean
   created_at: string
 }
@@ -17,6 +16,14 @@ export default function PersonnelPage() {
   const [personnel, setPersonnel] = useState<Personnel[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
+
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [fullName, setFullName] = useState("")
+  const [phoneNumber, setPhoneNumber] = useState("")
+  const [password, setPassword] = useState("")
+  const [role, setRole] = useState<"SECURITY" | "ADMIN">("SECURITY")
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
 
   const fetchPersonnel = async () => {
     try {
@@ -36,7 +43,37 @@ export default function PersonnelPage() {
     fetchPersonnel()
   }, [])
 
-  const updateProfile = async (profileId: string, changes: Partial<Pick<Personnel, "role" | "status" | "active">>) => {
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setCreating(true)
+    setCreateError(null)
+
+    try {
+      const res = await fetch("/api/admin/personnel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName, phoneNumber, password, role }),
+      })
+
+      if (res.ok) {
+        setFullName("")
+        setPhoneNumber("")
+        setPassword("")
+        setRole("SECURITY")
+        setShowCreateForm(false)
+        await fetchPersonnel()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setCreateError(data.error || "Failed to create account")
+      }
+    } catch (err) {
+      setCreateError("Error creating account. Please check your connection.")
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const updateProfile = async (profileId: string, changes: Partial<Pick<Personnel, "role" | "active">>) => {
     setUpdating(profileId)
     try {
       const res = await fetch("/api/admin/personnel", {
@@ -58,20 +95,12 @@ export default function PersonnelPage() {
     }
   }
 
-  const approve = (p: Personnel, role: "ADMIN" | "SECURITY") =>
-    updateProfile(p.id, { role, status: "APPROVED" })
-
-  const reject = (p: Personnel) => updateProfile(p.id, { status: "REJECTED" })
-
   const toggleActive = (p: Personnel) => updateProfile(p.id, { active: !p.active })
-
-  const pending = personnel.filter((p) => p.status === "PENDING")
-  const approved = personnel.filter((p) => p.status === "APPROVED")
 
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay Admin</h1>
             <Link href="/admin" className="text-blue-600 hover:text-blue-800">
@@ -81,106 +110,128 @@ export default function PersonnelPage() {
         </div>
       </nav>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Personnel</h2>
-        <p className="text-gray-600 mb-8">Approve new staff sign-ins and manage existing accounts</p>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Personnel</h2>
+            <p className="text-gray-600">Create and manage staff accounts</p>
+          </div>
+          <button
+            onClick={() => setShowCreateForm((v) => !v)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+          >
+            {showCreateForm ? "Cancel" : "+ New Account"}
+          </button>
+        </div>
+
+        {showCreateForm && (
+          <form onSubmit={handleCreate} className="bg-white rounded-lg shadow-md p-6 mb-8 space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">Create Staff Account</h3>
+
+            {createError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-800 text-sm">{createError}</div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="09XX-XXX-XXXX"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  minLength={6}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as "SECURITY" | "ADMIN")}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="SECURITY">Security</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={creating}
+              className="bg-green-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+            >
+              {creating ? "Creating..." : "Create Account"}
+            </button>
+          </form>
+        )}
 
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
+        ) : personnel.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-md p-6 text-center text-gray-500">No staff accounts yet</div>
         ) : (
-          <div className="space-y-10">
-            <section>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                Pending Approval {pending.length > 0 && <span className="text-yellow-600">({pending.length})</span>}
-              </h3>
-
-              {pending.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-md p-6 text-center text-gray-500">
-                  No pending sign-ins
+          <div className="bg-white rounded-lg shadow-md divide-y">
+            {personnel.map((p) => (
+              <div key={p.id} className="p-6 flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-gray-900">{p.full_name}</p>
+                  <p className="text-sm text-gray-500">{p.phone_number}</p>
                 </div>
-              ) : (
-                <div className="grid gap-4">
-                  {pending.map((p) => (
-                    <div key={p.id} className="bg-white rounded-lg shadow-md p-6 flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900">{p.full_name}</p>
-                        <p className="text-sm text-gray-500">{p.email}</p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          Signed up {new Date(p.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => approve(p, "SECURITY")}
-                          disabled={updating === p.id}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-                        >
-                          Approve as Security
-                        </button>
-                        <button
-                          onClick={() => approve(p, "ADMIN")}
-                          disabled={updating === p.id}
-                          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
-                        >
-                          Approve as Admin
-                        </button>
-                        <button
-                          onClick={() => reject(p)}
-                          disabled={updating === p.id}
-                          className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition disabled:opacity-50"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center gap-3">
+                  <select
+                    value={p.role}
+                    onChange={(e) => updateProfile(p.id, { role: e.target.value as "ADMIN" | "SECURITY" })}
+                    disabled={updating === p.id}
+                    className={`px-3 py-1 rounded-full text-sm font-semibold border-0 ${
+                      p.role === "ADMIN" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"
+                    }`}
+                  >
+                    <option value="SECURITY">SECURITY</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      p.active ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {p.active ? "Active" : "Deactivated"}
+                  </span>
+                  <button
+                    onClick={() => toggleActive(p)}
+                    disabled={updating === p.id}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
+                  >
+                    {p.active ? "Deactivate" : "Reactivate"}
+                  </button>
                 </div>
-              )}
-            </section>
-
-            <section>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Active Staff</h3>
-
-              {approved.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-md p-6 text-center text-gray-500">No staff accounts yet</div>
-              ) : (
-                <div className="bg-white rounded-lg shadow-md divide-y">
-                  {approved.map((p) => (
-                    <div key={p.id} className="p-6 flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900">{p.full_name}</p>
-                        <p className="text-sm text-gray-500">{p.email}</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                            p.role === "ADMIN" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"
-                          }`}
-                        >
-                          {p.role}
-                        </span>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            p.active ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-600"
-                          }`}
-                        >
-                          {p.active ? "Active" : "Deactivated"}
-                        </span>
-                        <button
-                          onClick={() => toggleActive(p)}
-                          disabled={updating === p.id}
-                          className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
-                        >
-                          {p.active ? "Deactivate" : "Reactivate"}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+              </div>
+            ))}
           </div>
         )}
       </div>
