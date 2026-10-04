@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { createAuthClient } from "@/lib/supabase/auth-client"
 
 interface PendingVisitor {
   id: string
@@ -16,9 +18,16 @@ interface PendingVisitor {
 }
 
 export default function SecurityDashboard() {
+  const router = useRouter()
   const [pendingVisitors, setPendingVisitors] = useState<PendingVisitor[]>([])
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+
+  const handleLogout = async () => {
+    const supabase = createAuthClient()
+    await supabase.auth.signOut()
+    router.push("/login")
+  }
 
   useEffect(() => {
     const fetchPending = async () => {
@@ -69,7 +78,9 @@ export default function SecurityDashboard() {
               <Link href="/security/history" className="text-gray-600 hover:text-gray-900">
                 History
               </Link>
-              <button className="text-gray-600 hover:text-gray-900">Logout</button>
+              <button onClick={handleLogout} className="text-gray-600 hover:text-gray-900">
+                Logout
+              </button>
             </div>
           </div>
         </div>

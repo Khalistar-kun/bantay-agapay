@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
+import { verifyStaff } from "@/lib/auth/verifyStaff"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -8,11 +9,19 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
+    const staff = await verifyStaff()
+
+    if (!staff) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const { visitId, reason } = await request.json()
 
     if (!visitId || !reason) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
+
+    const { data: profile } = await supabase.from("profiles").select("id").eq("auth_user_id", staff.userId).single()
 
     const { error } = await supabase
       .from("visits")
@@ -20,6 +29,7 @@ export async function POST(request: NextRequest) {
         status: "DENIED",
         denied_at: new Date().toISOString(),
         denial_reason: reason,
+        denied_by: profile?.id ?? null,
       })
       .eq("id", visitId)
 

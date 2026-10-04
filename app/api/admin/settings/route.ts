@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { verifyStaff } from "@/lib/auth/verifyStaff"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -8,6 +9,12 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
+    const staff = await verifyStaff()
+
+    if (!staff || staff.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const { latitude, longitude, radius, schoolName } = await request.json()
 
     if (!latitude || !longitude || !radius) {

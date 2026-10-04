@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
+import { verifyStaff } from "@/lib/auth/verifyStaff"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -8,16 +9,25 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
+    const staff = await verifyStaff()
+
+    if (!staff) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     const { visitId, token } = await request.json()
 
     if (!visitId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
+    const { data: profile } = await supabase.from("profiles").select("id").eq("auth_user_id", staff.userId).single()
+
     const update: Record<string, unknown> = {
       status: "INSIDE",
       approved_at: new Date().toISOString(),
       check_in: new Date().toISOString(),
+      approved_by: profile?.id ?? null,
     }
 
     if (token) {

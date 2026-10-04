@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { createAuthClient } from "@/lib/supabase/auth-client"
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -29,9 +30,9 @@ export default function AdminDashboard() {
     fetchStats()
   }, [])
 
-  const handleLogout = () => {
-    // Clear session cookie
-    document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
+  const handleLogout = async () => {
+    const supabase = createAuthClient()
+    await supabase.auth.signOut()
     router.push("/login")
   }
 
