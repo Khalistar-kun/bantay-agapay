@@ -83,6 +83,38 @@ export default function VisitStatusPage() {
     }
   }, [visitStatus?.status, token])
 
+  // While the visitor is inside and this page stays open, periodically push
+  // their current location so security can see where they are on campus.
+  useEffect(() => {
+    if (visitStatus?.status !== "INSIDE" || !navigator.geolocation) return
+
+    const pushLocation = () => {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const supabase = createClient()
+            await supabase.rpc("update_visit_location", {
+              p_token: token,
+              p_latitude: position.coords.latitude,
+              p_longitude: position.coords.longitude,
+            } as never)
+          } catch (err) {
+            console.error("Location update failed:", err)
+          }
+        },
+        () => {
+          // Silently ignore - live tracking is best-effort
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 }
+      )
+    }
+
+    pushLocation()
+    const interval = setInterval(pushLocation, 20000)
+
+    return () => clearInterval(interval)
+  }, [visitStatus?.status, token])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
@@ -162,6 +194,10 @@ export default function VisitStatusPage() {
 
             <p className="text-center text-green-700 text-sm font-semibold mb-4">
               You may now enter AFGBMTS. Please proceed to your destination.
+            </p>
+
+            <p className="text-center text-gray-500 text-xs mb-6">
+              📍 While you're on campus, keep this page open so security can see your location.
             </p>
 
             <a

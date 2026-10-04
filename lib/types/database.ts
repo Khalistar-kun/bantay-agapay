@@ -70,6 +70,9 @@ export type Database = {
           denied_at: string | null
           denied_by: string | null
           denial_reason: string | null
+          current_latitude: number | null
+          current_longitude: number | null
+          location_updated_at: string | null
           created_at: string
           updated_at: string
         }
@@ -206,6 +209,10 @@ export type Database = {
           longitude: number | null
           verified_at: string
         }[]
+      }
+      update_visit_location: {
+        Args: { p_token: string; p_latitude: number; p_longitude: number }
+        Returns: boolean
       }
     }
     Enums: {}

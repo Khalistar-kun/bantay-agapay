@@ -17,7 +17,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("visits")
     .select(
-      "id, reference_number, purpose, check_in, visitors(full_name, contact_number), destinations(name)"
+      "id, reference_number, purpose, check_in, current_latitude, current_longitude, location_updated_at, visitors(full_name, contact_number), destinations(name)"
     )
     .eq("status", "INSIDE")
     .order("check_in", { ascending: false })
@@ -32,6 +32,9 @@ export async function GET() {
     reference_number: v.reference_number,
     purpose: v.purpose,
     check_in: v.check_in,
+    current_latitude: v.current_latitude,
+    current_longitude: v.current_longitude,
+    location_updated_at: v.location_updated_at,
     full_name: v.visitors?.full_name || "Unknown",
     contact_number: v.visitors?.contact_number || "",
     destination_name: v.destinations?.name || "Unknown",
