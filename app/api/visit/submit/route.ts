@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
+import { normalizePhone } from "@/lib/utils/phone"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -61,12 +62,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create or find visitor
+    const normalizedPhone = normalizePhone(contactNumber)
+
+    // Create or find visitor by phone number (phone is the stable identity, not name+phone)
     const { data: existingVisitor, error: searchError } = await supabase
       .from("visitors")
       .select("id")
-      .eq("full_name", fullName)
-      .eq("contact_number", contactNumber)
+      .eq("contact_number", normalizedPhone)
       .single()
 
     let visitorId: string
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
       // Visitor doesn't exist, create new
       const { data: newVisitor, error: createError } = await supabase
         .from("visitors")
-        .insert({ full_name: fullName, contact_number: contactNumber, visitor_type: visitorType })
+        .insert({ full_name: fullName, contact_number: normalizedPhone, visitor_type: visitorType })
         .select("id")
         .single()
 

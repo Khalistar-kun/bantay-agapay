@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
+import { normalizePhone } from "@/lib/utils/phone"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -16,41 +17,56 @@ function generateReferenceNumber(): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const { visitorId } = await request.json()
+    const { phoneNumber, destinationId, purpose } = await request.json()
 
-    if (!visitorId) {
-      return NextResponse.json({ error: "Missing visitor ID" }, { status: 400 })
+    if (!phoneNumber || !destinationId || !purpose) {
+      return NextResponse.json({ error: "Phone number, destination, and purpose are required" }, { status: 400 })
     }
 
-    // Get a valid destination ID from database
-    const { data: destinations } = await supabase
-      .from("destinations")
-      .select("id")
-      .limit(1)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(destinationId)) {
+      return NextResponse.json({ error: "Invalid destination selected" }, { status: 400 })
+    }
 
-    const destinationId = destinations?.[0]?.id || "00000000-0000-0000-0000-000000000000"
+    const normalized = normalizePhone(phoneNumber)
+
+    const { data: visitor, error: searchError } = await supabase
+      .from("visitors")
+      .select("id, full_name")
+      .eq("contact_number", normalized)
+      .single()
+
+    if (searchError || !visitor) {
+      return NextResponse.json(
+        { error: "Phone number not found. Please register as a new visitor." },
+        { status: 404 }
+      )
+    }
 
     const referenceNumber = generateReferenceNumber()
     const token = crypto.randomBytes(16).toString("hex")
 
-    const { data: visitData, error } = await (supabase
+    const { data: visitData, error } = await supabase
       .from("visits")
       .insert({
-        visitor_id: visitorId,
+        visitor_id: visitor.id,
         destination_id: destinationId,
         reference_number: referenceNumber,
-        purpose: "Returning visitor re-entry",
+        purpose,
         public_token: token,
         status: "PENDING",
       })
-      .select("id") as any)
+      .select("id")
+      .single()
 
-    if (error || !visitData || visitData.length === 0) {
+    if (error || !visitData) {
+      console.error("Returning visit insert error:", error)
       return NextResponse.json({ error: "Failed to create visit" }, { status: 500 })
     }
 
-    return NextResponse.json({ visitId: visitData[0].id, token })
+    return NextResponse.json({ visitId: visitData.id, token, visitorName: visitor.full_name })
   } catch (err) {
+    console.error("Returning visitor error:", err)
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }

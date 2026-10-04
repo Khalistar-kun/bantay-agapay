@@ -5,7 +5,7 @@ import { RegistrationForm } from "@/components/visitor/RegistrationForm"
 import { FaceDetection } from "@/components/visitor/FaceDetection"
 import type { VisitorRegistrationInput } from "@/lib/validation/schemas"
 import { useRouter } from "next/navigation"
-import { getMockLocation, isWithinGeofence } from "@/lib/gps/geofence"
+import { getMockLocation, isWithinGeofence, ensureGeofenceSettingsLoaded } from "@/lib/gps/geofence"
 
 export default function VisitPage() {
   const router = useRouter()
@@ -34,14 +34,18 @@ export default function VisitPage() {
   // Auto-request location when entering GPS step
   useEffect(() => {
     if (step === "gps" && !locationGranted) {
+      ensureGeofenceSettingsLoaded()
       const timer = setTimeout(() => {
         handleRequestLocation()
       }, 1000)
       return () => clearTimeout(timer)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, locationGranted])
 
   const handleRequestLocation = async () => {
+    await ensureGeofenceSettingsLoaded()
+
     try {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })

@@ -10,6 +10,7 @@ interface Personnel {
   role: "ADMIN" | "SECURITY"
   active: boolean
   created_at: string
+  photoUrl: string | null
 }
 
 export default function PersonnelPage() {
@@ -199,9 +200,18 @@ export default function PersonnelPage() {
           <div className="bg-white rounded-lg shadow-md divide-y">
             {personnel.map((p) => (
               <div key={p.id} className="p-6 flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-gray-900">{p.full_name}</p>
-                  <p className="text-sm text-gray-500">{p.phone_number}</p>
+                <div className="flex items-center gap-4">
+                  {p.photoUrl ? (
+                    <img src={p.photoUrl} alt={p.full_name} className="w-12 h-12 rounded-full object-cover border" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-gray-100 border flex items-center justify-center text-gray-400 text-sm">
+                      {p.full_name?.[0] || "?"}
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-semibold text-gray-900">{p.full_name}</p>
+                    <p className="text-sm text-gray-500">{p.phone_number}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <select

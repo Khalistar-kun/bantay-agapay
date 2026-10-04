@@ -2,18 +2,12 @@ import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import { verifyStaff } from "@/lib/auth/verifyStaff"
 import bcrypt from "bcryptjs"
+import { normalizePhone } from "@/lib/utils/phone"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
   process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 )
-
-function normalizePhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "")
-  if (digits.startsWith("63") && digits.length === 12) return "0" + digits.slice(2)
-  if (digits.length === 10) return "0" + digits
-  return digits
-}
 
 export async function GET() {
   const staff = await verifyStaff()
@@ -24,14 +18,26 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, phone_number, role, active, created_at")
+    .select("id, full_name, phone_number, role, active, created_at, photo_path")
     .order("created_at", { ascending: false })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ personnel: data || [] })
+  const personnel = await Promise.all(
+    (data || []).map(async (p) => {
+      let photoUrl: string | null = null
+      if (p.photo_path) {
+        const { data: signed } = await supabase.storage.from("staff-photos").createSignedUrl(p.photo_path, 300)
+        photoUrl = signed?.signedUrl || null
+      }
+      const { photo_path, ...rest } = p
+      return { ...rest, photoUrl }
+    })
+  )
+
+  return NextResponse.json({ personnel })
 }
 
 export async function POST(request: NextRequest) {

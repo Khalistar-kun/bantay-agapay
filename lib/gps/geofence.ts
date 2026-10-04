@@ -1,26 +1,40 @@
-// AFGBMTS School coordinates (Won St, Deca Homes Saluysoy, Meycauayan)
-let SCHOOL_COORDINATES = {
+// Fallback used only if /api/admin/settings can't be reached
+const DEFAULT_COORDINATES = {
   latitude: 14.737,
   longitude: 120.9728,
 }
+const DEFAULT_RADIUS = 500
 
-// Geofence radius in meters (500m = 0.5km)
-let GEOFENCE_RADIUS = 500
+let schoolCoordinates = { ...DEFAULT_COORDINATES }
+let geofenceRadius = DEFAULT_RADIUS
+let settingsLoaded = false
+let settingsPromise: Promise<void> | null = null
 
-// Load settings from database
-if (typeof window !== "undefined") {
-  ;(async () => {
-    try {
-      const res = await fetch("/api/admin/settings")
-      if (res.ok) {
-        const data = await res.json()
-        SCHOOL_COORDINATES = { latitude: data.latitude, longitude: data.longitude }
-        GEOFENCE_RADIUS = data.radius
-      }
-    } catch (err) {
-      console.error("Failed to load school settings")
+async function loadSettings(): Promise<void> {
+  try {
+    const res = await fetch("/api/admin/settings")
+    if (res.ok) {
+      const data = await res.json()
+      schoolCoordinates = { latitude: data.latitude, longitude: data.longitude }
+      geofenceRadius = data.radius
     }
-  })()
+  } catch (err) {
+    console.error("Failed to load school settings, using defaults:", err)
+  } finally {
+    settingsLoaded = true
+  }
+}
+
+/**
+ * Ensures school location settings are loaded from the database before any
+ * geofence check runs. Call and await this before isWithinGeofence().
+ */
+export async function ensureGeofenceSettingsLoaded(): Promise<void> {
+  if (settingsLoaded) return
+  if (!settingsPromise) {
+    settingsPromise = loadSettings()
+  }
+  await settingsPromise
 }
 
 /**
@@ -46,29 +60,31 @@ export function calculateDistance(
 }
 
 /**
- * Verify if location is within school geofence
+ * Verify if location is within school geofence.
+ * Call ensureGeofenceSettingsLoaded() first so this uses the admin-configured
+ * location rather than the hardcoded fallback.
  */
 export function isWithinGeofence(lat: number, lon: number): {
   verified: boolean
   distance: number
   accuracy: number
 } {
-  const distance = calculateDistance(lat, lon, SCHOOL_COORDINATES.latitude, SCHOOL_COORDINATES.longitude)
+  const distance = calculateDistance(lat, lon, schoolCoordinates.latitude, schoolCoordinates.longitude)
 
   return {
-    verified: distance <= GEOFENCE_RADIUS,
+    verified: distance <= geofenceRadius,
     distance: Math.round(distance),
     accuracy: 25, // Mock accuracy in meters
   }
 }
 
 /**
- * Get mock location for testing (AFGBMTS coordinates)
+ * Get mock location for testing (school coordinates)
  */
 export function getMockLocation() {
   return {
-    latitude: SCHOOL_COORDINATES.latitude,
-    longitude: SCHOOL_COORDINATES.longitude,
+    latitude: schoolCoordinates.latitude,
+    longitude: schoolCoordinates.longitude,
     accuracy: 25,
   }
 }
@@ -112,13 +128,4 @@ export async function getLocation(useMock: boolean = true) {
   }
 
   return getRealLocation()
-}
-
-/**
- * School settings
- */
-export const SCHOOL_INFO = {
-  name: "AFGBMTS",
-  coordinates: SCHOOL_COORDINATES,
-  geofenceRadius: GEOFENCE_RADIUS,
 }

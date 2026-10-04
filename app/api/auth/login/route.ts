@@ -2,19 +2,12 @@ import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import crypto from "crypto"
+import { normalizePhone } from "@/lib/utils/phone"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
   process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 )
-
-function normalizePhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "")
-  // Normalize to 11-digit local format (0917...) regardless of +63/63/0 prefix
-  if (digits.startsWith("63") && digits.length === 12) return "0" + digits.slice(2)
-  if (digits.length === 10) return "0" + digits
-  return digits
-}
 
 export async function POST(request: NextRequest) {
   try {

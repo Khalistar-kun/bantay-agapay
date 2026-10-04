@@ -4,9 +4,12 @@ export type Database = {
       profiles: {
         Row: {
           id: string
-          full_name: string
-          email: string
-          role: "ADMIN" | "SECURITY"
+          full_name: string | null
+          email: string | null
+          phone_number: string | null
+          password_hash: string | null
+          photo_path: string | null
+          role: "ADMIN" | "SECURITY" | null
           active: boolean
           created_at: string
           updated_at: string
@@ -19,7 +22,7 @@ export type Database = {
           id: string
           full_name: string
           contact_number: string
-          visitor_type: string
+          visitor_type: string | null
           face_reference_path: string | null
           face_embedding: string | null
           created_at: string
@@ -32,15 +35,15 @@ export type Database = {
         Row: {
           id: string
           name: string
-          category: string
-          building: string
-          floor: string
-          room: string
-          description: string
-          landmark: string
-          directions: string
-          map_x: number
-          map_y: number
+          category: string | null
+          building: string | null
+          floor: string | null
+          room: string | null
+          description: string | null
+          landmark: string | null
+          directions: string | null
+          map_x: number | null
+          map_y: number | null
           active: boolean
           created_at: string
           updated_at: string
@@ -54,7 +57,7 @@ export type Database = {
           visitor_id: string
           destination_id: string
           reference_number: string
-          purpose: string
+          purpose: string | null
           status: "PENDING" | "INSIDE" | "EXITED" | "DENIED" | "CANCELLED"
           registration_time: string
           approved_at: string | null
@@ -108,6 +111,16 @@ export type Database = {
         Insert: Omit<Database["public"]["Tables"]["audit_logs"]["Row"], "id" | "created_at">
         Update: never
       }
+      staff_sessions: {
+        Row: {
+          token: string
+          profile_id: string
+          created_at: string
+          expires_at: string
+        }
+        Insert: Omit<Database["public"]["Tables"]["staff_sessions"]["Row"], "created_at">
+        Update: Partial<Database["public"]["Tables"]["staff_sessions"]["Row"]>
+      }
     }
     Views: {}
     Functions: {
@@ -134,6 +147,18 @@ export type Database = {
           destination_name: string
           approved_at: string | null
           denied_reason: string | null
+        }[]
+      }
+      get_visit_directions: {
+        Args: { token: string }
+        Returns: {
+          status: string
+          destination_name: string
+          building: string | null
+          floor: string | null
+          room: string | null
+          landmark: string | null
+          directions: string | null
         }[]
       }
       get_visit_detail: {

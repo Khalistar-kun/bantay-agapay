@@ -203,7 +203,9 @@ BEGIN
   JOIN destinations d ON v.destination_id = d.id
   WHERE v.public_token = token;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+GRANT EXECUTE ON FUNCTION get_visit_status(varchar) TO anon, authenticated;
 
 -- Function to get a single visit's full detail for the security review page
 DROP FUNCTION IF EXISTS get_visit_detail(uuid);
@@ -239,6 +241,36 @@ BEGIN
   WHERE v.id = visit_id;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Function to get full destination/directions detail for an approved visit, by public token
+DROP FUNCTION IF EXISTS get_visit_directions(varchar);
+CREATE OR REPLACE FUNCTION get_visit_directions(token varchar)
+RETURNS TABLE(
+  status varchar,
+  destination_name varchar,
+  building varchar,
+  floor varchar,
+  room varchar,
+  landmark text,
+  directions text
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    v.status::varchar,
+    d.name,
+    d.building,
+    d.floor,
+    d.room,
+    d.landmark,
+    d.directions
+  FROM visits v
+  JOIN destinations d ON v.destination_id = d.id
+  WHERE v.public_token = token;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+GRANT EXECUTE ON FUNCTION get_visit_directions(varchar) TO anon, authenticated;
 
 -- Storage bucket for visitor face photos (private; accessed via signed URLs from the server)
 INSERT INTO storage.buckets (id, name, public)

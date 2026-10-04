@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { ProfilePhotoPrompt } from "@/components/staff/ProfilePhotoPrompt"
+
+interface Me {
+  fullName: string | null
+  hasPhoto: boolean
+  photoUrl: string | null
+}
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -12,6 +19,8 @@ export default function AdminDashboard() {
     pendingApproval: 0,
     completedToday: 0,
   })
+  const [me, setMe] = useState<Me | null>(null)
+  const [showPhotoPrompt, setShowPhotoPrompt] = useState(false)
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -29,6 +38,23 @@ export default function AdminDashboard() {
     fetchStats()
   }, [])
 
+  const fetchMe = async () => {
+    try {
+      const res = await fetch("/api/auth/me")
+      if (res.ok) {
+        const data = await res.json()
+        setMe(data)
+        if (!data.hasPhoto) setShowPhotoPrompt(true)
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  useEffect(() => {
+    fetchMe()
+  }, [])
+
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" })
     router.push("/login")
@@ -40,15 +66,38 @@ export default function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay Admin</h1>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-semibold"
-            >
-              Logout
-            </button>
+            <div className="flex items-center gap-4">
+              {me && (
+                <div className="flex items-center gap-2">
+                  {me.photoUrl ? (
+                    <img src={me.photoUrl} alt={me.fullName || "Profile"} className="w-8 h-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                      {me.fullName?.[0] || "?"}
+                    </div>
+                  )}
+                  <span className="text-sm text-gray-700">{me.fullName}</span>
+                </div>
+              )}
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-semibold"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </nav>
+
+      {showPhotoPrompt && (
+        <ProfilePhotoPrompt
+          onDone={() => {
+            setShowPhotoPrompt(false)
+            fetchMe()
+          }}
+        />
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-8">Dashboard</h2>

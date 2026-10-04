@@ -27,25 +27,34 @@ export default function VisitStatusPage() {
     const fetchStatus = async () => {
       try {
         const supabase = createClient()
-        const { data, error: fetchError } = await (supabase
-          .from("visits")
-          .select("*, visitors(full_name), destinations(name)")
-          .eq("public_token", token)
-          .single() as any)
+        const { data, error: fetchError } = await supabase.rpc("get_visit_status", { token } as never)
 
-        if (fetchError || !data) {
+        const rows = data as
+          | {
+              status: string
+              visitor_name: string
+              reference_number: string
+              destination_name: string
+              approved_at: string | null
+              denied_reason: string | null
+            }[]
+          | null
+
+        if (fetchError || !rows || rows.length === 0) {
           setError("Visit record not found")
           setLoading(false)
           return
         }
 
+        const result = rows[0]
+
         setVisitStatus({
-          status: data.status,
-          visitor_name: data.visitors?.full_name || "Unknown",
-          reference_number: data.reference_number || "",
-          destination_name: data.destinations?.name || "Unknown",
-          approved_at: data.approved_at,
-          denied_reason: data.denial_reason,
+          status: result.status as VisitStatus["status"],
+          visitor_name: result.visitor_name || "Unknown",
+          reference_number: result.reference_number || "",
+          destination_name: result.destination_name || "Unknown",
+          approved_at: result.approved_at,
+          denied_reason: result.denied_reason,
         })
       } catch (err) {
         setError("Failed to load visit status")

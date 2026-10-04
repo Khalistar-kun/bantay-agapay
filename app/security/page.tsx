@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { ProfilePhotoPrompt } from "@/components/staff/ProfilePhotoPrompt"
 
 interface PendingVisitor {
   id: string
@@ -16,16 +17,41 @@ interface PendingVisitor {
   face_reference_path: string | null
 }
 
+interface Me {
+  fullName: string | null
+  hasPhoto: boolean
+  photoUrl: string | null
+}
+
 export default function SecurityDashboard() {
   const router = useRouter()
   const [pendingVisitors, setPendingVisitors] = useState<PendingVisitor[]>([])
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+  const [me, setMe] = useState<Me | null>(null)
+  const [showPhotoPrompt, setShowPhotoPrompt] = useState(false)
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" })
     router.push("/login")
   }
+
+  const fetchMe = async () => {
+    try {
+      const res = await fetch("/api/auth/me")
+      if (res.ok) {
+        const data = await res.json()
+        setMe(data)
+        if (!data.hasPhoto) setShowPhotoPrompt(true)
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  useEffect(() => {
+    fetchMe()
+  }, [])
 
   useEffect(() => {
     const fetchPending = async () => {
@@ -69,13 +95,25 @@ export default function SecurityDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay</h1>
-            <div className="flex gap-4">
+            <div className="flex items-center gap-4">
               <Link href="/security/inside" className="text-gray-600 hover:text-gray-900">
                 Currently Inside
               </Link>
               <Link href="/security/history" className="text-gray-600 hover:text-gray-900">
                 History
               </Link>
+              {me && (
+                <div className="flex items-center gap-2 pl-2 border-l">
+                  {me.photoUrl ? (
+                    <img src={me.photoUrl} alt={me.fullName || "Profile"} className="w-8 h-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500">
+                      {me.fullName?.[0] || "?"}
+                    </div>
+                  )}
+                  <span className="text-sm text-gray-700">{me.fullName}</span>
+                </div>
+              )}
               <button onClick={handleLogout} className="text-gray-600 hover:text-gray-900">
                 Logout
               </button>
@@ -83,6 +121,15 @@ export default function SecurityDashboard() {
           </div>
         </div>
       </nav>
+
+      {showPhotoPrompt && (
+        <ProfilePhotoPrompt
+          onDone={() => {
+            setShowPhotoPrompt(false)
+            fetchMe()
+          }}
+        />
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">

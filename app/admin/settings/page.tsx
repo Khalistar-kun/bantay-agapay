@@ -22,6 +22,30 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [mapLoaded, setMapLoaded] = useState(false)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch("/api/admin/settings")
+        if (res.ok) {
+          const data = await res.json()
+          setSettings({
+            latitude: data.latitude,
+            longitude: data.longitude,
+            radius: data.radius,
+            schoolName: data.schoolName,
+          })
+        }
+      } catch (err) {
+        console.error("Failed to load existing settings:", err)
+      } finally {
+        setSettingsLoaded(true)
+      }
+    }
+
+    fetchSettings()
+  }, [])
 
   useEffect(() => {
     // Load Leaflet (OpenStreetMap based)
@@ -47,10 +71,11 @@ export default function AdminSettingsPage() {
   }, [])
 
   useEffect(() => {
-    if (mapLoaded && settings.latitude && settings.longitude) {
+    if (mapLoaded && settingsLoaded && settings.latitude && settings.longitude) {
       initializeMap()
     }
-  }, [mapLoaded, settings.latitude, settings.longitude])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapLoaded, settingsLoaded, settings.latitude, settings.longitude])
 
   const initializeMap = () => {
     if (typeof window === "undefined") return
