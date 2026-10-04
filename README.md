@@ -1,6 +1,25 @@
 # Bantay-Agapay
 Digital Visitor Management & Campus Wayfinding System for AFGBMTS
 
+## Android download
+
+[Download Bantay-Agapay.apk](https://github.com/Khalistar-kun/bantay-agapay/releases/download/android-latest/Bantay-Agapay.apk).
+Requires Android 8.0 or newer. Open the downloaded APK to install it and allow
+camera and location access when requested. This app uses your existing Supabase
+records and staff accounts through the school backend; database service keys are
+never included in the APK.
+
+The first build uses a temporary HTTPS tunnel to the backend on this computer.
+Keep the computer, Next.js server, and tunnel running. This is not permanent
+hosting. If the address changes, use the app menu → School server to enter its
+new HTTPS address. A permanently hosted backend can be connected the same way.
+
+`.github/workflows/android.yml` builds and signs an installable test APK, checks
+Android lint and its signature, and publishes it as a GitHub Release download.
+`mobile/server.json` holds the default backend URL; it contains no credentials.
+The app makes authenticated requests through the original backend and uses
+its session cookies and access controls.
+
 ## Quick Start
 
 ### Prerequisites

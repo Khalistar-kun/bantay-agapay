@@ -36,3 +36,11 @@ yarn-error.log*
 # OS
 Thumbs.db
 tsconfig.tsbuildinfo
+
+# Android generated files and local signing material
+android/.gradle/
+android/local.properties
+android/**/build/
+*.jks
+*.keystore
+.tools/
