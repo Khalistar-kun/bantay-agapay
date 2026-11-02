@@ -21,6 +21,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: node --test tests/client-demo-security.test.cjs
       - run: npm run type-check
       - run: npm run build
       - uses: actions/upload-artifact@v4
