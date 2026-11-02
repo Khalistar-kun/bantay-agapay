@@ -148,7 +148,13 @@ export async function POST(request: NextRequest) {
       await supabase.from('visitors').delete().eq('id', visitor.id)
       return NextResponse.json({ error: 'Could not save visitor photo.' }, { status: 500 })
     }
-    await supabase.from('visitors').update({ face_reference_path: facePath }).eq('id', visitor.id)
+    const { error: faceLinkError } = await supabase.from('visitors')
+      .update({ face_reference_path: facePath }).eq('id', visitor.id)
+    if (faceLinkError) {
+      await supabase.storage.from('visitor-faces').remove([facePath])
+      await supabase.from('visitors').delete().eq('id', visitor.id)
+      return NextResponse.json({ error: 'Could not link visitor photo.' }, { status: 500 })
+    }
 
     // The reference fits the existing varchar(10) schema.
     const referenceNumber = 'V-' + randomBytes(4).toString('hex').toUpperCase()
