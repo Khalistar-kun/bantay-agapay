@@ -43,10 +43,13 @@ function harness(connected) {
   async function fakeFetch(url,opts={}) {
     const verb=opts.method||'GET'
     db.calls.push([verb,url])
+    if(url.includes('action=geofence'))return Response({boundary:{latitude:14.737,longitude:120.9728,radius:500}})
     if(url.includes('action=destinations'))return Response({destinations:[{id:destinationId,name:'Library',building:'School'}]})
     if(verb==='POST'&&url==='/api/client-demo'){
       const payload=JSON.parse(opts.body)
       assert.equal(payload.privacyConsent,true)
+      assert.equal(payload.gpsReading.latitude,14.737)
+      assert.ok(payload.gpsReading.capturedAt)
       assert.equal(payload.action,'register')
       assert.ok(payload.facePhoto.startsWith('data:image/jpeg;base64,'))
       return Response({success:true,token,referenceNumber:'V-ABCDEF12'})
@@ -71,7 +74,7 @@ function harness(connected) {
     location:{protocol:connected?'https:':'file:',pathname:'/client-demo/index.html'},
     window:{addEventListener(){},scrollTo(){}},
     FormData:fakeFormData,
-    navigator:{},
+    navigator:{geolocation:{getCurrentPosition(onSuccess){onSuccess({coords:{latitude:14.737,longitude:120.9728,accuracy:18}})}}},
     Image:FakeImage,
     URL:{createObjectURL:()=>'/fake.jpg',revokeObjectURL(){}},
     fetch:fakeFetch,
@@ -134,6 +137,10 @@ test('connected client uses only mocked APIs and completes approval and checkout
   await h.submit('visitor-form',form)
   await h.change('face-upload',[{type:'image/jpeg'}])
   assert.match(h.app.innerHTML,/Photo ready/)
+  await h.click('go-gps')
+  assert.match(h.app.innerHTML,/Campus location check/)
+  await h.click('gps-check')
+  assert.match(h.app.innerHTML,/inside the authorized check-in area/)
   await h.click('submit-visit')
   assert.match(h.app.innerHTML,/Awaiting approval/)
   await h.click('home')

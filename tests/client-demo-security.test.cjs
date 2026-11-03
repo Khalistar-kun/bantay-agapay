@@ -15,6 +15,8 @@ function mockBackend() {
     visits: [{ id: uuid, visitor_id: uuid2, status: 'PENDING', public_token: tok }],
     visitors: [{ id: uuid2, full_name: 'Demo Visitor', contact_number: '09170000000' }],
     destinations: [{ id: uuid2, active: true }],
+    system_settings: [{key:'school_latitude',value:'14.737'},{key:'school_longitude',value:'120.9728'},{key:'geofence_radius',value:'500'}],
+    verification_logs: [],
     uploaded: [], removed: [],
   }
   let serial = 0
@@ -131,11 +133,15 @@ test('client registration validates consent, size, photo, and creates a separate
   const jpeg=Buffer.concat([Buffer.from([0xff,0xd8,0xff]),Buffer.alloc(128)])
   const data={action:'register',fullName:'Test Person',contactNumber:'09170000000',
     visitorType:'Guest',purpose:'Appointment',destinationId:uuid2,
-    facePhoto:'data:image/jpeg;base64,'+jpeg.toString('base64'),privacyConsent:true}
+    facePhoto:'data:image/jpeg;base64,'+jpeg.toString('base64'),privacyConsent:true,
+    gpsReading:{latitude:14.737,longitude:120.9728,accuracy:18,capturedAt:new Date().toISOString()}}
   assert.equal((await x.register(req({...data,privacyConsent:false}))).status,400)
   assert.equal((await x.register(req({...data,facePhoto:'data:image/svg+xml;base64,AAA='}))).status,400)
   assert.equal((await x.register(req({...data,destinationId:uuid}))).status,400)
   assert.equal((await x.register(req(data,'https://evil.example'))).status,403)
+  assert.equal((await x.register(req({...data,gpsReading:null}))).status,422)
+  assert.equal((await x.register(req({...data,gpsReading:{...data.gpsReading,latitude:14.80}}))).status,403)
+  assert.equal((await x.register(req({...data,gpsReading:{...data.gpsReading,accuracy:300}}))).status,422)
   const result=await x.register(req(data))
   assert.equal(result.status,201)
   assert.match(result.body.token,/^[0-9a-f]{32}$/)
@@ -145,6 +151,9 @@ test('client registration validates consent, size, photo, and creates a separate
   assert.equal(x.db.visitors[0].full_name,'Demo Visitor')
   assert.equal(x.db.visits[1].status,'PENDING')
   assert.equal(x.db.uploaded.length,1)
+  assert.equal(x.db.verification_logs.length,1)
+  assert.equal(x.db.verification_logs[0].gps_status,'GPS_VERIFIED')
+  assert.equal(x.db.verification_logs[0].face_status,'FACE_ENROLLED')
 })
 test('client script remains valid JavaScript',()=>{
   assert.doesNotThrow(()=>new vm.Script(fs.readFileSync(path.join(__dirname,'../public/client-demo/script.js'),'utf8')))

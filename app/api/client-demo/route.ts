@@ -12,6 +12,32 @@ import { verifyStaff } from '@/lib/auth/verifyStaff'
 
 export const dynamic = 'force-dynamic'
 
+const campusDefaults = { latitude: 14.737, longitude: 120.9728, radius: 500 }
+
+function isCoordinate(lat: number, lon: number): boolean {
+  return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180
+}
+
+async function getCampusBoundary(supabase: ReturnType<typeof createClient>) {
+  const { data, error } = await supabase.from('system_settings').select('key,value')
+  if (error) return null
+  const settings = new Map((data || []).map((entry: { key: string; value: string }) => [entry.key, entry.value]))
+  const latitude = Number(settings.get('school_latitude') ?? campusDefaults.latitude)
+  const longitude = Number(settings.get('school_longitude') ?? campusDefaults.longitude)
+  const radius = Number(settings.get('geofence_radius') ?? campusDefaults.radius)
+  if (!isCoordinate(latitude, longitude) || !Number.isFinite(radius) || radius < 10 || radius > 10000) return null
+  return { latitude, longitude, radius }
+}
+
+function campusDistance(lat: number, lon: number, targetLat: number, targetLon: number) {
+  const rad = Math.PI / 180
+  const dLat = (targetLat - lat) * rad
+  const dLon = (targetLon - lon) * rad
+  const arc = Math.sin(dLat / 2) ** 2 + Math.cos(lat * rad) * Math.cos(targetLat * rad) * Math.sin(dLon / 2) ** 2
+  return 6371000 * 2 * Math.atan2(Math.sqrt(arc), Math.sqrt(Math.max(0, 1 - arc)))
+}
+
+
 export async function GET(request: NextRequest) {
   const action = request.nextUrl.searchParams.get('action')
   const token = request.nextUrl.searchParams.get('token') || ''
@@ -24,6 +50,11 @@ export async function GET(request: NextRequest) {
     auth: { persistSession: false, autoRefreshToken: false },
   })
   try {
+    if (action === 'geofence') {
+      const boundary = await getCampusBoundary(supabase)
+      if (!boundary) return NextResponse.json({ error: 'Campus location settings are unavailable.' }, { status: 503 })
+      return NextResponse.json({ boundary }, { headers: { 'Cache-Control': 'no-store' } })
+    }
     if (action === 'destinations') {
       const { data, error } = await supabase.from('destinations')
         .select('id,name,building,room,description').eq('active', true).order('name')
@@ -134,6 +165,26 @@ export async function POST(request: NextRequest) {
     if (destError) return NextResponse.json({ error: 'Could not validate destination.' }, { status: 500 })
     if (!destination) return NextResponse.json({ error: 'Destination is unavailable.' }, { status: 400 })
 
+    // The original registration flow checked the campus boundary before issuing a QR.
+    // Re-check reported coordinates on the server instead of trusting a client distance/status.
+    // Device GPS is not tamper-proof; a guard must still visually review the visitor.
+    const boundary = await getCampusBoundary(supabase)
+    if (!boundary) return NextResponse.json({ error: 'Campus location settings are unavailable.' }, { status: 503 })
+    const gps = body.gpsReading
+    const latitude = gps?.latitude
+    const longitude = gps?.longitude
+    const accuracy = gps?.accuracy
+    const captured = typeof gps?.capturedAt === 'string' ? Date.parse(gps.capturedAt) : NaN
+    if (typeof latitude !== 'number' || typeof longitude !== 'number' || !isCoordinate(latitude, longitude) ||
+        typeof accuracy !== 'number' || !Number.isFinite(accuracy) || accuracy <= 0 || accuracy > 150 ||
+        !Number.isFinite(captured) || Math.abs(Date.now() - captured) > 60_000) {
+      return NextResponse.json({ error: 'A recent, accurate campus location reading is required.' }, { status: 422 })
+    }
+    const distance = campusDistance(latitude, longitude, boundary.latitude, boundary.longitude)
+    if (distance > boundary.radius) {
+      return NextResponse.json({ error: 'Registration requires being within the school check-in area.' }, { status: 403 })
+    }
+
     const { data: visitor, error: visitorError } = await supabase.from('visitors')
       .insert({ full_name: fullName, contact_number: contactNumber, visitor_type: visitorType })
       .select('id').single()
@@ -174,6 +225,22 @@ export async function POST(request: NextRequest) {
       await supabase.storage.from('visitor-faces').remove([facePath])
       await supabase.from('visitors').delete().eq('id', visitor.id)
       return NextResponse.json({ error: 'Could not create visit.' }, { status: 500 })
+    }
+    // Record the device-reported check. An enrollment photo is not biometric verification.
+    const { error: verificationError } = await supabase.from('verification_logs').insert({
+      visit_id: visit.id,
+      face_status: 'FACE_ENROLLED',
+      gps_status: 'GPS_VERIFIED',
+      gps_accuracy: accuracy,
+      distance_from_school: Math.round(distance),
+      latitude,
+      longitude,
+    })
+    if (verificationError) {
+      await supabase.from('visits').delete().eq('id', visit.id)
+      await supabase.storage.from('visitor-faces').remove([facePath])
+      await supabase.from('visitors').delete().eq('id', visitor.id)
+      return NextResponse.json({ error: 'Could not save campus verification.' }, { status: 500 })
     }
     return NextResponse.json({ success: true, token, referenceNumber }, { status: 201, headers: { 'Cache-Control': 'no-store' } })
   } catch {
