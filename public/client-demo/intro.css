@@ -1,86 +1,43 @@
-/* Bantay-Agapay opening sequence: shown once per tab; never blocks reduced-motion users. */
-.ba-intro {
-  display: none; position: fixed; inset: 0; z-index: 10000;
-  overflow: hidden; align-items: center; justify-content: center;
-  background: radial-gradient(circle at 50% 39%, #8d2840 0%, #6b1930 35%, #431020 83%);
-  color: #fff; text-align: center; isolation: isolate;
-  opacity: 1; visibility: visible;
+/* BANTAY-AGAPAY — LOGO-ONLY INTRO. No box, rings, label or decorative artwork. */
+.ba-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  background: #ffffff;
+  overflow: hidden;
+  animation: splashFade 1.9s ease-in-out forwards;
 }
-.ba-intro-enabled .ba-intro { display: flex; }
-.ba-intro::before {
-  content: ""; position: absolute; inset: -20%; pointer-events: none;
-  background: radial-gradient(ellipse at 50% 46%, rgba(240,204,134,.19), transparent 42%);
-  animation: ba-intro-glow 2s ease-in-out both;
+.ba-splash-logo {
+  display: block;
+  width: min(92vw, 980px);
+  max-height: 86vh;
+  object-fit: contain;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  animation: logoZoom 1.9s ease-in-out forwards;
 }
-.ba-intro::after {
-  content: ""; pointer-events: none; position: absolute; inset: 0;
-  background-image: radial-gradient(rgba(255,255,255,.25) .65px,transparent .65px);
-  background-size: 26px 26px; opacity: .11;
-  -webkit-mask-image: linear-gradient(to bottom,transparent 0%,#000 30%,transparent 100%);
-  mask-image: linear-gradient(to bottom,transparent 0%,#000 30%,transparent 100%);
+@keyframes logoZoom {
+  0%   { opacity: 0; transform: scale(0.72); }
+  25%  { opacity: 1; transform: scale(1.08); }
+  65%  { opacity: 1; transform: scale(1); }
+  85%  { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 0; transform: scale(1.24); }
 }
-.ba-intro-center { position: relative; z-index: 1; width: min(90vw, 530px); }
-.ba-intro-emblem { position: relative; width: 180px; height: 180px; margin: 0 auto 23px; display: grid; place-items: center; }
-.ba-intro-logo-card {
-  width: 136px; height: 136px; display: grid; place-items: center;
-  background: #fffdf8; border-radius: 30px; padding: 10px;
-  box-shadow: 0 24px 65px rgba(36,0,14,.38), 0 0 0 1px rgba(255,255,255,.65);
-  animation: ba-intro-logo 900ms cubic-bezier(.18,.85,.23,1.15) both;
+@keyframes splashFade {
+  0%, 70% { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
 }
-.ba-intro-logo-card img { width: 100%; height: 100%; object-fit: contain; }
-.ba-intro-orbit {
-  position: absolute; inset: 0; border: 1px solid rgba(239,210,160,.5);
-  border-radius: 50%; animation: ba-intro-orbit 1.35s ease-out both;
-}
-.ba-intro-orbit.secondary { inset: 10px; border-color: rgba(255,255,255,.2); animation-delay: 150ms; }
-.ba-intro-divider {
-  width: 48px; height: 2px; margin: 0 auto 15px;
-  background: #e9bc78; transform-origin: center;
-  animation: ba-intro-rule 550ms 530ms ease-out both;
-}
-.ba-intro-heading {
-  margin: 0; color: #fff; font-size: clamp(27px,6vw,44px);
-  font-weight: 850; letter-spacing: .075em; line-height: 1.18;
-  animation: ba-intro-rise 680ms 570ms ease-out both;
-}
-.ba-intro-heading span { color: #e9bc78; padding: 0 .025em; }
-.ba-intro-subheading {
-  margin: 12px auto 0; color: rgba(255,255,255,.78);
-  font-size: clamp(12px,2.6vw,15px); letter-spacing: .055em; font-weight: 450;
-  animation: ba-intro-rise 620ms 800ms ease-out both;
-}
-.ba-intro-loading {
-  margin: 27px auto 0; width: 128px; height: 2px; overflow: hidden;
-  background: rgba(255,255,255,.18); border-radius: 2px;
-  animation: ba-intro-rise 350ms 900ms both;
-}
-.ba-intro-loading span { display: block; height: 100%; background: #f1ce94; transform-origin: left; animation: ba-intro-progress 1.2s 850ms ease-in-out both; }
-.ba-intro-bottom {
-  position: absolute; bottom: max(28px, env(safe-area-inset-bottom)); left: 12px; right: 12px;
-  color: rgba(255,255,255,.54); font-size: 10px; letter-spacing: .22em;
-  font-weight: 700; animation: ba-intro-rise 700ms 920ms ease-out both;
-}
-.ba-intro-bottom span { color: #e9bc78; padding: 0 8px; }
-.ba-intro-skip {
-  position: absolute; top: max(22px, env(safe-area-inset-top)); right: max(22px, env(safe-area-inset-right)); z-index: 4;
-  background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.32);
-  padding: 10px 15px; border-radius: 99px; cursor: pointer; font-size: 12px;
-  font-weight: 650; min-height: 40px;
-}
-.ba-intro-skip:hover,.ba-intro-skip:focus-visible { background: rgba(255,255,255,.2); outline-offset: 3px; }
-.ba-intro-skip span { margin-left: 8px; color: #f1ce94; }
-.ba-intro-exiting .ba-intro { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 340ms ease, visibility 340ms ease; }
-@keyframes ba-intro-logo { from { opacity: 0; transform: translateY(18px) scale(.82); filter: blur(6px); } to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
-@keyframes ba-intro-orbit { from { opacity: 0; transform: scale(.5) rotate(-18deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
-@keyframes ba-intro-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes ba-intro-rule { from { transform: scaleX(0); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
-@keyframes ba-intro-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-@keyframes ba-intro-glow { 0% { opacity: 0; transform: scale(.92); } 50% { opacity: 1; } 100% { opacity: .75; transform: scale(1.08); } }
-@media (max-width: 480px) {
-  .ba-intro-emblem { width: 158px; height: 158px; }
-  .ba-intro-logo-card { width: 122px; height: 122px; border-radius: 25px; }
-  .ba-intro-heading { letter-spacing: .045em; }
+@media (max-width: 600px) {
+  .ba-splash-logo { width: 96vw; max-height: 82vh; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ba-intro, .ba-intro-enabled .ba-intro { display: none !important; }
+  .ba-splash { display: none !important; }
 }

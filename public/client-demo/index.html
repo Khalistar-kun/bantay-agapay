@@ -4,40 +4,19 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#7d1425"><title>Bantay-Agapay | Visitor Monitoring</title>
 <meta name="description" content="Bantay-Agapay visitor registration and campus gate management">
-<link rel="icon" href="/client-demo/bantay-agapay-logo.png"><link rel="stylesheet" href="/client-demo/style.css">
-<script>
-(function () {
-  try {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    var force = new URLSearchParams(window.location.search).get('intro') === '1';
-    if (force || sessionStorage.getItem('ba_intro_seen') !== '1') {
-      document.documentElement.classList.add('ba-intro-enabled');
-    }
-  } catch (_) { /* Leave the site usable if storage is unavailable. */ }
-})();
-</script>
+<link rel="icon" href="/client-demo/bantay-agapay-logo.png">
+<link rel="preload" href="/client-demo/bantay-agapay-logo.png" as="image">
 <link rel="stylesheet" href="/client-demo/intro.css">
+<link rel="stylesheet" href="/client-demo/style.css">
 </head>
 <body>
-<div class="ba-intro" id="ba-intro" aria-label="Bantay-Agapay opening animation">
-  <button type="button" class="ba-intro-skip" id="ba-intro-skip" aria-label="Skip opening animation">Skip intro <span aria-hidden="true">↗</span></button>
-  <div class="ba-intro-light" aria-hidden="true"></div>
-  <div class="ba-intro-center">
-    <div class="ba-intro-emblem">
-      <span class="ba-intro-orbit" aria-hidden="true"></span>
-      <span class="ba-intro-orbit secondary" aria-hidden="true"></span>
-      <div class="ba-intro-logo-card">
-        <img src="/client-demo/bantay-agapay-logo.png" alt="Bantay-Agapay school security logo" width="120" height="120" decoding="async">
-      </div>
-    </div>
-    <div class="ba-intro-divider" aria-hidden="true"></div>
-    <h1 class="ba-intro-heading">BANTAY<span>–</span>AGAPAY</h1>
-    <p class="ba-intro-subheading">Visitor Monitoring &amp; Campus Security</p>
-    <div class="ba-intro-loading" aria-hidden="true"><span></span></div>
-  </div>
-  <div class="ba-intro-bottom">AFGBMTS <span aria-hidden="true">•</span> MARILAO, BULACAN</div>
+<!-- Logo-only splash: replays on every full page load and hard refresh. -->
+<div id="ba-splash" class="ba-splash" aria-hidden="true">
+  <img src="/client-demo/bantay-agapay-logo.png" alt="" class="ba-splash-logo" fetchpriority="high">
 </div>
 <div id="app"></div><div id="toast" role="status" aria-live="polite"></div>
-<script src="/client-demo/qrcode-offline.js"></script><script defer src="/client-demo/intro.js"></script><script src="/client-demo/script.js"></script>
+<script src="/client-demo/qrcode-offline.js"></script>
+<script src="/client-demo/script.js"></script>
+<script src="/client-demo/intro.js"></script>
 </body>
 </html>
