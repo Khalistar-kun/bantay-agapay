@@ -18,7 +18,7 @@ function isCoordinate(lat: number, lon: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180
 }
 
-async function getCampusBoundary(supabase: ReturnType<typeof createClient>) {
+async function getCampusBoundary(supabase: any) {
   const { data, error } = await supabase.from('system_settings').select('key,value')
   if (error) return null
   const settings = new Map((data || []).map((entry: { key: string; value: string }) => [entry.key, entry.value]))
