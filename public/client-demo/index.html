@@ -10,9 +10,25 @@
 <link rel="stylesheet" href="/client-demo/style.css">
 </head>
 <body>
-<!-- Logo-only splash: replays on every full page load and hard refresh. -->
+<!-- A cinematic, logo-led opening; replayed on each full load with no session tracking. -->
 <div id="ba-splash" class="ba-splash" aria-hidden="true">
-  <img src="/client-demo/bantay-agapay-logo.png" alt="" class="ba-splash-logo" fetchpriority="high">
+  <div class="ba-splash-aurora"></div>
+  <div class="ba-splash-grid"></div>
+  <div id="ba-splash-stars" class="ba-splash-stars"></div>
+  <div class="ba-splash-beam"></div>
+  <div class="ba-splash-rings">
+    <span class="ba-ring ba-ring-one"></span>
+    <span class="ba-ring ba-ring-two"></span>
+    <span class="ba-ring ba-ring-three"></span>
+  </div>
+  <div class="ba-splash-mark">
+    <span class="ba-splash-mark-glow"></span>
+    <img src="/client-demo/bantay-agapay-logo.png" alt="" class="ba-splash-logo" fetchpriority="high" decoding="async">
+    <span class="ba-splash-sheen"></span>
+  </div>
+  <span class="ba-splash-wave ba-wave-one"></span>
+  <span class="ba-splash-wave ba-wave-two"></span>
+  <span class="ba-splash-last-light"></span>
 </div>
 <div id="app"></div><div id="toast" role="status" aria-live="polite"></div>
 <script src="/client-demo/qrcode-offline.js"></script>
