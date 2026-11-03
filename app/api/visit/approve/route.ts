@@ -6,40 +6,38 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
   process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 )
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function POST(request: NextRequest) {
   try {
     const staff = await verifyStaff()
+    if (!staff) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    if (!staff) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Cookie-authenticated staff actions must come from the same website.
+    const origin = request.headers.get("origin")
+    if (origin && origin !== request.nextUrl.origin) {
+      return NextResponse.json({ error: "Cross-origin request denied" }, { status: 403 })
     }
 
-    const { visitId, token } = await request.json()
-
-    if (!visitId) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    const body = await request.json()
+    const visitId = body?.visitId
+    if (typeof visitId !== "string" || !uuidPattern.test(visitId)) {
+      return NextResponse.json({ error: "Invalid visit ID" }, { status: 400 })
     }
 
-    const update: Record<string, unknown> = {
-      status: "INSIDE",
-      approved_at: new Date().toISOString(),
-      check_in: new Date().toISOString(),
-      approved_by: staff.profileId,
-    }
-
-    if (token) {
-      update.public_token = token
-    }
-
-    const { error } = await supabase.from("visits").update(update).eq("id", visitId)
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
+    // Never accept a replacement public QR token from an approval request.
+    // A conditional update prevents APPROVED, EXITED or DENIED visits being reopened.
+    const now = new Date().toISOString()
+    const { data, error } = await supabase.from("visits")
+      .update({ status: "INSIDE", approved_at: now, check_in: now, approved_by: staff.profileId })
+      .eq("id", visitId)
+      .eq("status", "PENDING")
+      .select("id")
+      .maybeSingle()
+    if (error) return NextResponse.json({ error: "Unable to approve visit" }, { status: 500 })
+    if (!data) return NextResponse.json({ error: "Visit is not pending or does not exist" }, { status: 409 })
     return NextResponse.json({ success: true })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
