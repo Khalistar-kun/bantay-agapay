@@ -42,8 +42,9 @@
   const fromLocal = location.protocol === 'file:';
   let preferred=isLiveProduction?'connected':localStorage.getItem('ba_demo_mode');
   if(!['offline','connected'].includes(preferred))preferred=sameOrigin?'connected':'offline';
-  const state={mode:isLiveProduction?'connected':fromLocal?'offline':preferred, role:'visitor',view:'welcome',step:0,form:{},photo:'',gps:null,gpsVerified:false,gpsLoading:false,gpsError:'',token:sessionStorage.getItem('ba_last_pass')||'',loginRole:'security',staffName:'',staffRole:'',staffLoggedIn:false,destinations:[...DESTS],pending:[],inside:[],history:[],summary:null,selected:null,filter:'',scanning:false,submitting:false};
+  const state={mode:isLiveProduction?'connected':fromLocal?'offline':preferred, role:'visitor',view:'welcome',step:0,form:{},photo:'',faceScanReady:false,faceReviewOnly:false,faceScanStatus:'Start the camera to check face presence and motion.',gps:null,gpsVerified:false,gpsLoading:false,gpsError:'',token:sessionStorage.getItem('ba_last_pass')||'',loginRole:'security',staffName:'',staffRole:'',staffLoggedIn:false,destinations:[...DESTS],pending:[],inside:[],history:[],summary:null,selected:null,filter:'',scanning:false,submitting:false};
   let cameraStream=null, scanTimer=null, pollTimer=null, notificationTimer=null;
+  let faceScanSession=null, cameraSerial=0;
   const toast = (msg) => { const el=$('#toast');el.textContent=msg;el.classList.add('visible');clearTimeout(notificationTimer);notificationTimer=setTimeout(()=>el.classList.remove('visible'),4200);};
   async function request(path,opts={}){
     if(state.mode!=='connected') throw Error('Connected mode is not active.');
@@ -59,7 +60,7 @@
     try {const data=await request('/api/client-demo?action=destinations');state.destinations=data.destinations||[];}
     catch(e){state.destinations=[];toast(e.message);}
   }
-  function stopCamera(){ if(scanTimer){clearInterval(scanTimer);scanTimer=null;}if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;} state.scanning=false; }
+  function stopCamera(){ cameraSerial++;if(faceScanSession){faceScanSession.stop();faceScanSession=null;}state.faceScanReady=false;if(scanTimer){clearInterval(scanTimer);scanTimer=null;}if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}state.scanning=false; }
   function navigate(view){stopCamera();state.view=view;window.scrollTo(0,0);render();}
   function shell(content){
     let label=isLiveProduction?'Live school portal':state.mode==='offline'?'Offline demo':'Connected backend';
@@ -71,8 +72,24 @@
   const destOptions=()=>state.destinations.map(d=>`<option value="${esc(d.id)}" ${state.form.destinationId===d.id?'selected':''}>${esc(d.name)} (${esc(d.building||'Campus')})</option>`).join('');
   function visitorWelcome(){return shell(hero('A warm welcome. A safer campus.','Register, have your photo checked by security, and use one QR pass for both arrival and departure.')+`<div class="workspace"><div class="panel panel-pad"><span class="eyebrow">Welcome to AFGBMTS</span><h2 style="margin:9px 0">How can we help you today?</h2><p class="muted">Visitor check-in is designed to take just a few simple steps.</p><div class="welcome-actions"><button class="btn" data-action="begin">Register a new visit →</button><button class="btn secondary" data-action="restore-pass">View my QR pass</button><a class="btn secondary" href="/visit/returning">Returning visitor ↺</a></div><div class="line"></div><div class="mode-choice"><button class="choice" data-action="begin"><div class="choice-icon">◉</div><strong>New visitor</strong><span>Register and capture your photo</span></button><a class="choice" href="/visit/returning"><div class="choice-icon">↺</div><strong>Returning visitor</strong><span>Re-register using the school’s existing returning-visitor workflow</span></a><button class="choice" data-action="go-staff"><div class="choice-icon">▦</div><strong>Security / Admin</strong><span>Review QR passes and process entry and exit</span></button></div></div>${guide()}</div>`);}
   function infoPage(){return shell(hero('Visitor registration','Complete the same core visitor details used in your school registration workflow.','Step 1 · Your information')+`<div class="workspace"><section class="panel panel-pad">${wizard()}<div class="panel-head"><div><h2>Tell us about your visit</h2><p>All fields are required.</p></div></div>${state.mode==='connected'&&state.destinations.length===0?`<div class="message denied">School destinations could not be loaded. Connected registration is unavailable until the backend responds.</div>`:''}<form id="visitor-form"><div class="form-grid"><div class="field wide"><label>Full name <em>*</em></label><input name="fullName" minlength="3" maxlength="100" autocomplete="name" required placeholder="Enter your full name" value="${esc(state.form.fullName||'')}"></div><div class="field"><label>Contact number <em>*</em></label><input name="contactNumber" type="tel" autocomplete="tel" required pattern="09[0-9]{9}" title="Enter 11 digits starting with 09" placeholder="09XXXXXXXXX" value="${esc(state.form.contactNumber||'')}"></div><div class="field"><label>Visitor type <em>*</em></label><select name="visitorType" required><option value="">Choose type</option>${[['Parent','Parent / Guardian'],['Alumni','Alumni'],['Guest','Guest'],['Supplier','Supplier / Contractor'],['Government','Government / Official'],['Other','Other']].map(([v,t])=>`<option value="${v}" ${state.form.visitorType===v?'selected':''}>${t}</option>`).join('')}</select></div><div class="field wide"><label>Purpose of visit <em>*</em></label><input name="purpose" required maxlength="240" placeholder="e.g., Meet a teacher, submit documents" value="${esc(state.form.purpose||'')}"></div><div class="field wide"><label>Where are you going? <em>*</em></label><select name="destinationId" required><option value="">Select a destination</option>${destOptions()}</select></div></div>${state.mode==='connected'?'<div class="note"><label style="display:flex;align-items:flex-start;gap:10px"><input type="checkbox" name="privacyConsent" required style="margin-top:5px"><span>I understand that my name, contact information, visit details, and photo will be processed for school visitor registration and security review. For privacy questions, contact the school administration.</span></label></div>':''}<div class="foot-actions"><button type="button" class="btn ghost" data-action="home">Back</button><button type="submit" class="btn" ${state.destinations.length===0?'disabled':''}>Continue to photo →</button></div></form></section>${guide()}</div>`);}
-  function facePage(){const pic=state.photo?`<img src="${esc(state.photo)}" alt="Your captured visitor photo">`:`<div class="face-placeholder"><span class="face-symbol">◉</span><strong>Ready for your photo</strong><p class="small muted">Start your camera or choose a picture below.</p></div>`;
-    return shell(hero('Face photo capture','Your photo will be reviewed by the security guard before entry. No automatic biometric matching is claimed.','Step 2 · Photo capture')+`<div class="workspace"><section class="panel panel-pad">${wizard()}<div class="note"><strong>Camera privacy</strong> — Face capture is for staff visual review. When connected, the image is sent to your existing backend; when offline, it stays on this device.</div><div class="face-box" id="face-holder">${pic}${state.photo?'<span class="face-badge">Photo ready ✓</span>':''}</div><div class="pill-row"><button class="btn secondary" data-action="start-camera">📷 Start camera</button><button class="btn light" data-action="capture-camera">Capture photo</button><label class="btn secondary" for="face-upload">Choose photo</label><input id="face-upload" type="file" accept="image/*" capture="user" hidden><button class="btn ghost" data-action="retake">Retake</button></div>${state.mode==='offline'?'<button class="btn small ghost" data-action="placeholder-photo" style="margin-top:12px">Use fictional demo face placeholder</button>':''}<div class="line"></div>${state.mode==='offline'?`<div class="note"><strong>Location check:</strong> <span id="gps-status">${state.gps?`Location captured (±${Math.round(state.gps.accuracy)}m)`:'Optional in this offline demo.'}</span> <button class="btn small ghost" data-action="gps">Use my location</button></div>`:'<div class="note">The next step verifies your device-reported location is within the school registration area. Security still reviews your photo and entry.</div>'}<div class="foot-actions"><button class="btn ghost" data-action="back-info">← Back</button><button class="btn" data-action="${state.mode==='connected'?'go-gps':'submit-visit'}" ${!state.photo||state.submitting?'disabled':''}>${state.submitting?'Saving...':state.mode==='connected'?'Verify campus GPS →':'Generate my QR pass →'}</button></div></section>${guide()}</div>`);
+  function facePage(){
+    const pic=state.photo?'<img src="'+esc(state.photo)+'" alt="Your captured visitor photo">':'<div class="face-placeholder"><span class="face-symbol">◎</span><strong>Position your face in the center</strong><p class="small muted">Start the scanner, blink, then turn your head to each side when prompted.</p></div>';
+    const label=state.faceReviewOnly?'Photo for manual guard review':'Face-motion prompts completed; guard identity review required';
+    return shell(hero('Face photo scanning','Detect one face, follow basic motion prompts, and take a photo for staff review. This does not verify identity.','Step 2 · Face scanning')+
+      '<div class="workspace"><section class="panel panel-pad">'+wizard()+
+      '<div class="note"><strong>Privacy and access</strong> — Live camera frames are analyzed on your device. The final image is sent to the school backend only when you register. A guard must approve entry. Face motion is not proof of liveness or identity.</div>'+
+      '<div class="face-box" id="face-holder">'+pic+(state.photo?'<span class="face-badge">Photo ready ✓</span>':'')+'</div>'+
+      '<p id="face-scan-status" class="note" role="status" aria-live="polite">'+esc(state.photo?label:state.faceScanStatus)+'</p>'+
+      '<div class="pill-row"><button type="button" class="btn secondary" data-action="start-camera">📷 Start face scan</button>'+
+      '<button type="button" class="btn light" id="face-capture-btn" data-action="capture-camera" disabled>Capture scanned photo</button>'+
+      '<button type="button" class="btn ghost" id="face-manual-btn" data-action="capture-manual" disabled>Use camera photo for manual review</button>'+
+      '<label class="btn secondary" for="face-upload">Upload for manual review</label>'+
+      '<input id="face-upload" type="file" accept="image/*" capture="user" hidden>'+
+      '<button type="button" class="btn ghost" data-action="retake">Retake</button></div>'+
+      (state.mode==='offline'?'<button type="button" class="btn small ghost" data-action="placeholder-photo">Use fictional demo face placeholder</button>':'')+
+      '<div class="line"></div><div class="note">If your device cannot scan faces, use the manual-review option. Photo upload never counts as a completed scan.</div>'+
+      (state.mode==='offline'?'<div class="note"><strong>Location check:</strong> <span id="gps-status">Optional in the offline demo.</span> <button class="btn small ghost" data-action="gps">Use my location</button></div>':'<div class="note">Next: campus GPS, followed by manual guard approval.</div>')+
+      '<div class="foot-actions"><button class="btn ghost" data-action="back-info">← Back</button><button class="btn" data-action="'+(state.mode==='connected'?'go-gps':'submit-visit')+'" '+(!state.photo||state.submitting?'disabled':'')+'>'+(state.submitting?'Saving...':state.mode==='connected'?'Verify campus GPS →':'Generate my QR pass →')+'</button></div></section>'+guide()+'</div>');
   }
   function findMyVisit(){return db.visits.find(v=>v.token===state.token)||null;}
   function qrPanel(visit){if(!visit)return `<div class="empty">No pass found. Register a visit first.</div>`;
@@ -161,9 +178,65 @@
   async function selectVisit(id){let v=state.pending.concat(state.inside,state.history).find(x=>x.id===id)||db.visits.find(x=>x.id===id);if(!v)return;if(state.mode==='connected')try{const data=await request('/api/security/visit/'+encodeURIComponent(id));v={...v, ...data.visit,name:data.visit.full_name,reference:data.visit.reference_number,destination:data.visit.destination_name,visitorType:data.visit.visitor_type,photoPath:data.visit.face_reference_path};}catch(e){toast(e.message);}state.selected=v;state.view='staff';render();if(v.photoPath&&state.mode==='connected')try{const p=await request('/api/visit/face-photo?path='+encodeURIComponent(v.photoPath));if(state.selected?.id===v.id){state.selected.photo=p.url;render();}}catch{}}
   async function gateAction(action){const v=state.selected;if(!v)return;const expected=action==='checkout'?'INSIDE':'PENDING';if(v.status!==expected){toast(`Cannot ${action}: visitor is ${v.status}.`);return;}if(action==='deny'){const reason=prompt('Reason for denying entry:');if(!reason?.trim())return;v.reason=reason.trim();}if(!confirm(action==='approve'?`Approve ${v.name} for entry?`:action==='checkout'?`Record check-out for ${v.name}?`:`Deny ${v.name} entry?`))return;
     try{if(state.mode==='connected'){const path=action==='approve'?'/api/visit/approve':action==='checkout'?'/api/visit/checkout':'/api/visit/deny';let body=action==='checkout'&&v.token?{token:v.token,visitId:v.id}:action==='deny'?{visitId:v.id,reason:v.reason}:{visitId:v.id};await request(path,{method:'POST',body:JSON.stringify(body)});}else{const item=db.visits.find(x=>x.id===v.id);if(!item)throw Error('This visitor is not in the local demo database.');item.status=action==='approve'?'INSIDE':action==='checkout'?'EXITED':'DENIED';if(action==='approve')item.checkIn=nowIso();else if(action==='checkout')item.checkOut=nowIso();else item.reason=v.reason;db.logs.unshift({action,visitId:item.id,time:nowIso()});dbSave(db);}state.selected=null;toast(action==='approve'?'Entry approved and check-in recorded.':action==='checkout'?'Visitor checked out successfully.':'Entry denied.');await refreshStaff();}catch(e){toast(e.message);}}
-  async function startFaceCamera(){stopCamera();try{if(!navigator.mediaDevices?.getUserMedia)throw Error('Camera access unavailable. Try choosing a photo instead.');const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});cameraStream=stream;const holder=$('#face-holder');if(!holder)return;holder.innerHTML='<video autoplay muted playsinline id="live-video"></video><span class="face-badge">Camera preview</span>';$('#live-video').srcObject=stream;}catch(e){toast(e.message||'Camera permission was not granted.');}}
-  function captureFace(){const video=$('#live-video');if(!video||!video.videoWidth){toast('Start the camera first, or choose a photo.');return;}const canvas=document.createElement('canvas');canvas.width=320;canvas.height=320;let sx=0,sy=0,sw=video.videoWidth,sh=video.videoHeight;if(sw>sh){sx=(sw-sh)/2;sw=sh;}else{sy=(sh-sw)/2;sh=sw;}canvas.getContext('2d').drawImage(video,sx,sy,sw,sh,0,0,320,320);state.photo=canvas.toDataURL('image/jpeg',.72);stopCamera();render();toast('Photo captured.');}
-  async function loadPhoto(file){if(!file||!file.type.startsWith('image/')){toast('Choose a valid image file.');return;}const url=URL.createObjectURL(file),im=new Image();try{await new Promise((resolve,reject)=>{im.onload=resolve;im.onerror=reject;im.src=url;});const c=document.createElement('canvas');c.width=320;c.height=320;const ctx=c.getContext('2d');const side=Math.min(im.naturalWidth,im.naturalHeight);ctx.drawImage(im,(im.naturalWidth-side)/2,(im.naturalHeight-side)/2,side,side,0,0,320,320);state.photo=c.toDataURL('image/jpeg',.72);stopCamera();render();toast('Photo attached.');}catch{toast('Unable to load this photo.');}finally{URL.revokeObjectURL(url);}}
+  function updateFaceStatus(message, ready) {
+    state.faceScanStatus=message;
+    if(ready!==undefined) state.faceScanReady=ready;
+    const el=$('#face-scan-status');if(el)el.textContent=message;
+    const button=$('#face-capture-btn');if(button)button.disabled=!state.faceScanReady;
+  }
+  async function startFaceCamera(){
+    stopCamera();
+    const attempt=cameraSerial;
+    state.faceScanReady=false;
+    state.faceReviewOnly=false;
+    updateFaceStatus('Requesting camera permission…',false);
+    try {
+      if(!navigator.mediaDevices?.getUserMedia)throw Error('Camera unavailable. Upload a photo for manual security review.');
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
+      if(attempt!==cameraSerial){stream.getTracks().forEach(t=>t.stop());return;}
+      cameraStream=stream;
+      const holder=$('#face-holder');
+      if(!holder){stopCamera();return;}
+      holder.innerHTML='<video autoplay muted playsinline id="live-video" aria-label="Live front camera"></video><span class="face-badge">Scanning face</span>';
+      const video=$('#live-video');
+      video.srcObject=stream;
+      await video.play();
+      if(attempt!==cameraSerial)return;
+      const manual=$('#face-manual-btn');if(manual)manual.disabled=false;
+      updateFaceStatus('Loading the on-device face landmark model…',false);
+      if(!window.BantayFaceScan)throw Error('Face scanner was not loaded. Use manual photo review.');
+      faceScanSession=window.BantayFaceScan.start(video,{
+        onProgress(progress){
+          if(attempt!==cameraSerial)return;
+          updateFaceStatus(progress.message,progress.ready);
+          const badge=holder.querySelector('.face-badge');if(badge)badge.textContent=progress.ready?'Motion check complete':'Scanning face';
+        },
+        onError(error){
+          if(attempt!==cameraSerial)return;
+          updateFaceStatus((error?.message||'Face scan unavailable.')+' Use manual photo review.',false);
+        }
+      });
+      await faceScanSession.ready;
+    }catch(e){if(attempt!==cameraSerial)return;updateFaceStatus((e?.message||'Camera error.')+' You may upload a photo for manual security review.',false);}
+  }
+  function captureFace(manual=false){
+    const video=$('#live-video');
+    if(!video||!video.videoWidth){toast('Open the camera first or upload a photo for manual review.');return;}
+    if(!manual&&(!state.faceScanReady||!faceScanSession?.isReady())){toast('Complete the blink and head-turn prompts first.');return;}
+    const canvas=document.createElement('canvas');
+    canvas.width=480;canvas.height=480;
+    let sx=0,sy=0,sw=video.videoWidth,sh=video.videoHeight;
+    if(sw>sh){sx=(sw-sh)/2;sw=sh;}else{sy=(sh-sw)/2;sh=sw;}
+    const ctx=canvas.getContext('2d');
+    if(!ctx){toast('Camera capture unavailable.');return;}
+    ctx.drawImage(video,sx,sy,sw,sh,0,0,480,480);
+    state.photo=canvas.toDataURL('image/jpeg',.78);
+    state.faceReviewOnly=!!manual;
+    stopCamera();
+    render();
+    toast(manual?'Photo taken for manual security review.':'Motion prompts complete. Security will still verify your identity.');
+  }
+  async function loadPhoto(file){if(!file||!file.type.startsWith('image/')){toast('Choose a valid image file.');return;}const url=URL.createObjectURL(file),im=new Image();try{await new Promise((resolve,reject)=>{im.onload=resolve;im.onerror=reject;im.src=url;});const c=document.createElement('canvas');c.width=320;c.height=320;const ctx=c.getContext('2d');const side=Math.min(im.naturalWidth,im.naturalHeight);ctx.drawImage(im,(im.naturalWidth-side)/2,(im.naturalHeight-side)/2,side,side,0,0,320,320);state.photo=c.toDataURL('image/jpeg',.72);state.faceReviewOnly=true;stopCamera();render();toast('Photo attached for manual security review.');}catch{toast('Unable to load this photo.');}finally{URL.revokeObjectURL(url);}}
   function fictionalPhoto(){const c=document.createElement('canvas');c.width=320;c.height=320;const ctx=c.getContext('2d');ctx.fillStyle='#f5e4e8';ctx.fillRect(0,0,320,320);ctx.fillStyle='#9c697b';ctx.beginPath();ctx.arc(160,125,53,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(160,290,105,95,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#783549';ctx.font='17px Arial';ctx.textAlign='center';ctx.fillText('FICTIONAL DEMO PHOTO',160,26);state.photo=c.toDataURL('image/png');render();}
   function useGps(){if(!navigator.geolocation){toast('GPS is unavailable in this browser.');return;}toast('Requesting location permission...');navigator.geolocation.getCurrentPosition(p=>{state.gps={latitude:p.coords.latitude,longitude:p.coords.longitude,accuracy:p.coords.accuracy,distance:null};const el=$('#gps-status');if(el)el.textContent=`Location captured (±${Math.round(p.coords.accuracy)}m)`;toast('Location captured for this registration.');},()=>toast('Location unavailable. The security guard can review manually.'),{enableHighAccuracy:true,timeout:10000});}
   async function staffLogin(form){const fd=new FormData(form),u=String(fd.get('user')||'').trim(),pass=String(fd.get('password')||'');try{if(state.mode==='offline'){if(!((u==='security'&&pass==='security123')||(u==='admin'&&pass==='admin123')))throw Error('Invalid demo login.');state.staffRole=u;state.staffName=u==='admin'?'Demo Administrator':'Demo Security Guard';}else{const data=await request('/api/auth/login',{method:'POST',body:JSON.stringify({phoneNumber:u,password:pass})});state.staffRole=data.role==='ADMIN'?'admin':'security';state.staffName=data.name||'School personnel';}state.staffLoggedIn=true;state.selected=null;state.role='staff';state.view='staff';await refreshStaff();toast(`Welcome, ${state.staffName}.`);}catch(e){toast(e.message);}}
@@ -189,14 +262,15 @@
     const row=e.target.closest('[data-review-id]');if(row){await selectVisit(row.dataset.reviewId);return;}
     const button=e.target.closest('[data-action]');if(!button)return;e.preventDefault();const act=button.dataset.action;
     if(act==='home'){state.role='visitor';navigate('welcome');}
-    else if(act==='begin'){state.step=0;state.photo='';state.gps=null;state.gpsVerified=false;state.gpsError='';state.form={};await loadDestinations();navigate('info');}
+    else if(act==='begin'){state.step=0;state.photo='';state.faceReviewOnly=false;state.faceScanStatus='Start the camera to check face presence and motion.';state.gps=null;state.gpsVerified=false;state.gpsError='';state.form={};await loadDestinations();navigate('info');}
     else if(act==='back-info'){state.step=0;navigate('info');}
     else if(act==='back-face'){state.step=1;navigate('face');}
     else if(act==='go-gps'){if(!state.photo){toast('Capture a photo before continuing.');return;}state.step=2;navigate('gps');}
     else if(act==='gps-check')await verifyCampusGps();
     else if(act==='start-camera')await startFaceCamera();
-    else if(act==='capture-camera')captureFace();
-    else if(act==='retake'){stopCamera();state.photo='';render();}
+    else if(act==='capture-camera')captureFace(false);
+    else if(act==='capture-manual')captureFace(true);
+    else if(act==='retake'){stopCamera();state.photo='';state.faceReviewOnly=false;state.faceScanStatus='Start the camera to check face presence and motion.';render();}
     else if(act==='placeholder-photo'&&state.mode==='offline')fictionalPhoto();
     else if(act==='gps')useGps();
     else if(act==='submit-visit')await submitVisit();

@@ -1,283 +1,230 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 interface FaceDetectionProps {
   onSuccess: (photoDataUrl: string) => void
   onError: (message: string) => void
 }
+interface Progress {
+  phase: string
+  ready: boolean
+  message: string
+}
+interface ScannerSession {
+  stop: () => void
+  ready: Promise<void>
+  isReady: () => boolean
+}
+interface ScannerApi {
+  start: (
+    video: HTMLVideoElement,
+    options: { onProgress: (progress: Progress) => void; onError: (error: Error) => void }
+  ) => ScannerSession
+}
+declare global {
+  interface Window { BantayFaceScan?: ScannerApi }
+}
+
+let scannerScriptPromise: Promise<ScannerApi> | null = null
+function loadScanner(): Promise<ScannerApi> {
+  if (typeof window === "undefined") return Promise.reject(new Error("Camera requires a browser."))
+  if (window.BantayFaceScan) return Promise.resolve(window.BantayFaceScan)
+  if (!scannerScriptPromise) {
+    scannerScriptPromise = new Promise<ScannerApi>((resolve, reject) => {
+      const element = document.createElement("script")
+      element.src = "/client-demo/face-scanner.js"
+      element.async = true
+      element.onload = () => window.BantayFaceScan
+        ? resolve(window.BantayFaceScan)
+        : reject(new Error("Face scanner was not initialized."))
+      element.onerror = () => reject(new Error("Face scanner script could not load."))
+      document.head.appendChild(element)
+    }).catch((error) => { scannerScriptPromise = null; throw error })
+  }
+  return scannerScriptPromise
+}
 
 export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const sessionRef = useRef<ScannerSession | null>(null)
+  const callbacksRef = useRef({ onSuccess, onError })
+  callbacksRef.current = { onSuccess, onError }
+  const [retryCount, setRetryCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [instruction, setInstruction] = useState("Please allow camera access")
-  const [faceDetected, setFaceDetected] = useState(false)
-  const [headPosition, setHeadPosition] = useState<"center" | "left" | "right">("center")
-  const [completedMoves, setCompletedMoves] = useState<("left" | "right")[]>([])
-  const [verificationComplete, setVerificationComplete] = useState(false)
-  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null)
-  const detectionTimeoutRef = useRef<NodeJS.Timeout>()
-  const scanningRef = useRef(true)
+  const [message, setMessage] = useState("Requesting camera permission…")
+  const [ready, setReady] = useState(false)
+  const [cameraAvailable, setCameraAvailable] = useState(false)
+  const [capturedPhoto, setCapturedPhoto] = useState("")
+  const [manualReview, setManualReview] = useState(false)
+  const [scannerFailed, setScannerFailed] = useState(false)
 
   useEffect(() => {
-    const startCamera = async () => {
+    let disposed = false
+    const start = async () => {
       try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("Camera is unavailable. Use the photo upload for manual security review.")
+        }
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
-          audio: false,
+          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false,
         })
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          setLoading(false)
-          setInstruction("Look at the camera")
-          detectFace()
-        }
-      } catch (err) {
-        onError("Camera access denied. Please allow camera access in your browser settings.")
-        setLoading(false)
+        if (disposed) { stream.getTracks().forEach((track) => track.stop()); return }
+        streamRef.current = stream
+        const video = videoRef.current
+        if (!video) throw new Error("Video preview is unavailable.")
+        video.srcObject = stream
+        await video.play()
+        if (disposed) return
+        setCameraAvailable(true)
+        setMessage("Loading on-device face scanner…")
+        const scanner = await loadScanner()
+        if (disposed) return
+        const session = scanner.start(video, {
+          onProgress: (progress) => {
+            if (!disposed) {
+              setMessage(progress.message)
+              setReady(progress.ready)
+            }
+          },
+          onError: (error) => {
+            if (!disposed) {
+              setScannerFailed(true)
+              setMessage(error.message)
+            }
+          },
+        })
+        sessionRef.current = session
+        await session.ready
+      } catch (error) {
+        if (disposed) return
+        const text = error instanceof Error ? error.message : "Could not start face scan."
+        setScannerFailed(true)
+        setMessage(text + " You can submit a photo for manual guard review.")
+        callbacksRef.current.onError(text)
+      } finally {
+        if (!disposed) setLoading(false)
       }
     }
-
-    startCamera()
-
+    void start()
     return () => {
-      if (videoRef.current?.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream
-        stream.getTracks().forEach((track) => track.stop())
-      }
-      if (detectionTimeoutRef.current) {
-        clearTimeout(detectionTimeoutRef.current)
-      }
+      disposed = true
+      sessionRef.current?.stop()
+      sessionRef.current = null
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onError])
+  }, [retryCount])
 
-  const detectFace = () => {
-    if (!videoRef.current || !canvasRef.current) return
-
-    const canvas = canvasRef.current
-    const context = canvas.getContext("2d")
-    if (!context) return
-
+  const capture = (reviewOnly: boolean) => {
     const video = videoRef.current
-    let consecutiveLeftFrames = 0
-    let consecutiveRightFrames = 0
-
-    const drawFrame = () => {
-      if (!scanningRef.current) return
-
-      context.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-      // Simple face detection simulation
-      const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-      const data = imageData.data
-
-      let faceScore = 0
-      let leftScore = 0
-      let rightScore = 0
-
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i]
-        const g = data[i + 1]
-        const b = data[i + 2]
-        const pixelIndex = i / 4
-
-        // Detect skin tones
-        if (r > 95 && g > 40 && b > 20 && r > b && r > g) {
-          faceScore++
-
-          // Determine if pixel is on left or right side
-          const pixelX = pixelIndex % canvas.width
-          if (pixelX < canvas.width / 3) {
-            leftScore++
-          } else if (pixelX > (canvas.width * 2) / 3) {
-            rightScore++
-          }
-        }
-      }
-
-      const faceConfidence = faceScore / (canvas.width * canvas.height)
-
-      if (faceConfidence > 0.15) {
-        setFaceDetected(true)
-
-        // Auto-detect head position
-        if (leftScore > rightScore && leftScore > faceScore * 0.4) {
-          consecutiveLeftFrames++
-          consecutiveRightFrames = 0
-          setHeadPosition("left")
-
-          // Auto-detect when looking left for 15 frames (~500ms)
-          if (consecutiveLeftFrames > 15) {
-            setCompletedMoves((prev) => (prev.includes("left") ? prev : [...prev, "left"]))
-            setInstruction("Great! Now turning right...")
-            consecutiveLeftFrames = 0
-          }
-        } else if (rightScore > leftScore && rightScore > faceScore * 0.4) {
-          consecutiveRightFrames++
-          consecutiveLeftFrames = 0
-          setHeadPosition("right")
-
-          // Auto-detect when looking right for 15 frames (~500ms)
-          if (consecutiveRightFrames > 15) {
-            setCompletedMoves((prev) => (prev.includes("right") ? prev : [...prev, "right"]))
-            setInstruction("Perfect! Verification complete...")
-            consecutiveRightFrames = 0
-          }
-        } else {
-          consecutiveLeftFrames = 0
-          consecutiveRightFrames = 0
-          setHeadPosition("center")
-        }
-      } else {
-        setFaceDetected(false)
-        consecutiveLeftFrames = 0
-        consecutiveRightFrames = 0
-      }
-
-      requestAnimationFrame(drawFrame)
+    if (!video || !video.videoWidth || (!reviewOnly && !sessionRef.current?.isReady())) {
+      setMessage("Finish the face-motion prompts before capturing, or choose manual security review.")
+      return
     }
-
-    drawFrame()
-  }
-
-  // Capture the photo and pause for review once both movements are detected
-  useEffect(() => {
-    if (completedMoves.length === 2 && !verificationComplete) {
-      setVerificationComplete(true)
-      scanningRef.current = false
-      setInstruction("✓ Face verified!")
-
-      detectionTimeoutRef.current = setTimeout(() => {
-        setCapturedPhoto(capturePhoto())
-      }, 800)
-    }
-  }, [completedMoves, verificationComplete])
-
-  const capturePhoto = (): string => {
     const canvas = document.createElement("canvas")
-    const video = videoRef.current
-    if (!video) return ""
-
-    canvas.width = video.videoWidth || 640
-    canvas.height = video.videoHeight || 480
+    canvas.width = 480
+    canvas.height = 480
     const context = canvas.getContext("2d")
-    if (!context) return ""
-
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
-    return canvas.toDataURL("image/jpeg", 0.85)
+    if (!context) { setMessage("Camera capture is unavailable."); return }
+    const side = Math.min(video.videoWidth, video.videoHeight)
+    context.drawImage(video, (video.videoWidth-side)/2, (video.videoHeight-side)/2,
+      side, side, 0, 0, canvas.width, canvas.height)
+    setCapturedPhoto(canvas.toDataURL("image/jpeg", 0.78))
+    setManualReview(reviewOnly)
+    sessionRef.current?.stop()
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    setMessage(reviewOnly
+      ? "Photo captured for manual security review. No face-motion check was completed."
+      : "Face-motion prompts completed. Review your photo; identity is checked by security.")
   }
 
-  const handleRetake = () => {
-    setCapturedPhoto(null)
-    setVerificationComplete(false)
-    setCompletedMoves([])
-    setFaceDetected(false)
-    setHeadPosition("center")
-    setInstruction("Look at the camera")
-    scanningRef.current = true
-    requestAnimationFrame(() => detectFace())
-  }
-
-  const handleConfirm = () => {
-    if (capturedPhoto) {
-      onSuccess(capturedPhoto)
+  const upload = async (file?: File) => {
+    if (!file) return
+    if (!file.type.startsWith("image/") || file.size > 8_000_000) {
+      setMessage("Select an image file smaller than 8 MB.")
+      return
     }
+    const url = URL.createObjectURL(file)
+    try {
+      const image = new Image()
+      image.src = url
+      await image.decode()
+      const canvas = document.createElement("canvas")
+      canvas.width = 480
+      canvas.height = 480
+      const ctx = canvas.getContext("2d")
+      if (!ctx) throw new Error("Image conversion failed.")
+      const side = Math.min(image.naturalWidth, image.naturalHeight)
+      ctx.drawImage(image, (image.naturalWidth-side)/2, (image.naturalHeight-side)/2, side, side, 0, 0, 480, 480)
+      setCapturedPhoto(canvas.toDataURL("image/jpeg", 0.78))
+      setManualReview(true)
+      sessionRef.current?.stop()
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      setMessage("Uploaded photo requires manual guard review; no live scan was performed.")
+    } catch {
+      setMessage("The selected image could not be opened.")
+    } finally {
+      URL.revokeObjectURL(url)
+    }
+  }
+
+  const retake = () => {
+    setCapturedPhoto("")
+    setReady(false)
+    setCameraAvailable(false)
+    setScannerFailed(false)
+    setManualReview(false)
+    setLoading(true)
+    setMessage("Restarting the camera…")
+    setRetryCount((count) => count + 1)
   }
 
   return (
-    <div className="space-y-4">
-      {/* Instructions */}
-      <div
-        className={`p-4 rounded-lg text-center font-semibold ${
-          verificationComplete ? "bg-green-50 text-green-900" : faceDetected ? "bg-primary-50 text-primary-900" : "bg-yellow-50 text-yellow-900"
-        }`}
-      >
-        {loading ? "Initializing camera..." : capturedPhoto ? "Review your photo" : instruction}
+    <section className="space-y-4" aria-label="Visitor face capture">
+      <div role="status" aria-live="polite" className="rounded-lg bg-primary-50 p-4 text-sm font-semibold text-primary-900">
+        {loading ? "Starting camera and face scanner…" : message}
       </div>
-
-      {/* Video Feed / Captured Photo Preview */}
-      <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video">
-        {capturedPhoto ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={capturedPhoto} alt="Captured face" className="w-full h-full object-cover" />
-        ) : (
-          <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-        )}
-
-        {/* Face Detection Outline */}
-        {faceDetected && !verificationComplete && !capturedPhoto && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-32 h-40 border-4 border-green-500 rounded-2xl animate-pulse" />
-          </div>
-        )}
-
-        {/* Verification Complete (before photo preview appears) */}
-        {verificationComplete && !capturedPhoto && (
-          <div className="absolute inset-0 flex items-center justify-center bg-green-500/20 pointer-events-none">
-            <div className="text-center">
-              <p className="text-4xl text-green-400 font-bold">✓</p>
-              <p className="text-green-300 text-lg font-semibold">Face Verified</p>
-            </div>
-          </div>
-        )}
-
-        {/* No Face Detected */}
-        {!loading && !faceDetected && !verificationComplete && !capturedPhoto && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <div className="text-white text-center">
-              <p className="text-lg font-semibold">No face detected</p>
-              <p className="text-sm">Position your face in front of the camera</p>
-            </div>
-          </div>
-        )}
-
-        {/* Head Position Indicator */}
-        {faceDetected && !verificationComplete && !capturedPhoto && (
-          <div className="absolute top-4 right-4 bg-black/50 text-white px-3 py-1 rounded text-sm font-semibold">
-            {headPosition === "left" ? "← Looking Left" : headPosition === "right" ? "Looking Right →" : "Centered"}
-          </div>
-        )}
+      <div className="relative overflow-hidden rounded-xl bg-gray-950 aspect-square max-w-lg mx-auto">
+        <video ref={videoRef} muted autoPlay playsInline
+          className={"h-full w-full object-cover " + (capturedPhoto ? "hidden" : "")} />
+        {capturedPhoto ? <img src={capturedPhoto} alt="Visitor photo preview" className="absolute inset-0 w-full h-full object-cover" /> :
+          <div className="pointer-events-none absolute inset-[14%] rounded-[42%] border-2 border-dashed border-white/70" />}
+        {!capturedPhoto && ready && <div className="absolute bottom-3 inset-x-3 text-center rounded-lg bg-emerald-900/90 text-white px-3 py-2 text-sm">
+          Motion check complete — ready to capture
+        </div>}
       </div>
-
-      {/* Hidden canvas for processing */}
-      <canvas ref={canvasRef} width={640} height={480} className="hidden" />
-
-      {/* Photo Review Actions */}
-      {capturedPhoto && (
-        <div className="flex gap-3">
-          <button
-            onClick={handleRetake}
-            className="flex-1 bg-gray-200 text-gray-800 font-semibold py-3 rounded-lg hover:bg-gray-300 transition"
-          >
-            Retake Photo
-          </button>
-          <button
-            onClick={handleConfirm}
-            className="flex-1 bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition"
-          >
-            Use This Photo
-          </button>
+      <p className="text-xs text-gray-600">
+        This checks face presence and simple movements on your device. It does not identify you or prove liveness.
+        A security guard must compare your photo and approve your entry.
+      </p>
+      {capturedPhoto ? (
+        <div className="space-y-3">
+          <p className="text-sm text-gray-700">{manualReview ? "Manual photo review required" : "Motion prompts completed; manual identity review still required"}</p>
+          <div className="flex gap-3">
+            <button type="button" onClick={retake} className="flex-1 rounded-lg bg-gray-200 text-gray-800 py-3 font-semibold">Retake</button>
+            <button type="button" onClick={() => callbacksRef.current.onSuccess(capturedPhoto)}
+              className="flex-1 rounded-lg bg-primary-600 text-white py-3 font-semibold">Use this photo</button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <button type="button" onClick={() => capture(false)} disabled={!ready}
+            className="w-full rounded-lg bg-primary-600 text-white py-3 font-semibold disabled:opacity-50">Capture scanned photo</button>
+          {cameraAvailable && <button type="button" onClick={() => capture(true)}
+            className="w-full rounded-lg bg-gray-100 text-gray-800 py-3 font-semibold">
+            Capture photo for manual review
+          </button>}
+          <label className="block cursor-pointer text-center rounded-lg border border-gray-300 py-3 text-sm font-semibold">
+            Upload photo for manual review
+            <input type="file" accept="image/*" capture="user" className="sr-only"
+              onChange={(e) => void upload(e.target.files?.[0])}/>
+          </label>
+          {scannerFailed && <button type="button" onClick={retake}
+            className="w-full text-primary-700 underline text-sm">Retry the face scanner</button>}
         </div>
       )}
-
-      {/* Movement Progress */}
-      {faceDetected && !verificationComplete && !capturedPhoto && (
-        <div className="bg-primary-50 rounded-lg p-4">
-          <p className="text-sm font-semibold text-gray-900 mb-3">Face verification progress:</p>
-          <div className="flex gap-4">
-            <div className={`flex-1 p-3 rounded-lg text-center font-semibold ${completedMoves.includes("left") ? "bg-green-100 text-green-800" : "bg-white text-gray-700 border border-gray-300"}`}>
-              {completedMoves.includes("left") ? "✓ Left" : "← Left"}
-            </div>
-            <div className={`flex-1 p-3 rounded-lg text-center font-semibold ${completedMoves.includes("right") ? "bg-green-100 text-green-800" : "bg-white text-gray-700 border border-gray-300"}`}>
-              {completedMoves.includes("right") ? "✓ Right →" : "Right →"}
-            </div>
-          </div>
-          <p className="text-xs text-gray-600 mt-3 text-center">Automatically detecting head movements...</p>
-        </div>
-      )}
-    </div>
+    </section>
   )
 }

@@ -106,7 +106,7 @@ test('offline visitor registration, staff QR approval and same-QR checkout',asyn
   assert.match(h.app.innerHTML,/Register a new visit/)
   await h.click('begin')
   await h.submit('visitor-form',form)
-  assert.match(h.app.innerHTML,/Face photo capture/)
+  assert.match(h.app.innerHTML,/Face photo scanning/)
   await h.click('placeholder-photo')
   await h.click('submit-visit')
   const pass=h.app.innerHTML
