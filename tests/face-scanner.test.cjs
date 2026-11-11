@@ -80,3 +80,52 @@ test('quality issues block readiness and no photos are transmitted by scanner',(
  assert.match(source,/@mediapipe\/tasks-vision@/)
  assert.doesNotMatch(source,/fetch\(|toDataURL|localStorage|sessionStorage/)
 });
+
+
+test('auto photo countdown starts at 3 and fires exactly once after 3 seconds',()=>{
+ let nextId=1;const queue=new Map();const seen=[];let photos=0;
+ const clock={setTimeout(fn,ms){assert.equal(ms,1000);const id=nextId++;queue.set(id,fn);return id},clearTimeout(id){queue.delete(id)}};
+ const timer=scanner.createCountdown({onTick(n){seen.push(n)},onComplete(){photos++}},clock);
+ timer.update(true);assert.deepEqual(seen,[3]);assert.equal(queue.size,1);
+ timer.update(true);assert.equal(queue.size,1);
+ for(let i=0;i<3;i++){const [id,fn]=queue.entries().next().value;queue.delete(id);fn()}
+ assert.deepEqual(seen,[3,2,1,0]);assert.equal(photos,1);assert.equal(queue.size,0);
+ timer.update(true);assert.equal(photos,1);assert.equal(queue.size,0);
+});
+
+test('lost face cancels countdown and the next stable scan restarts from 3',()=>{
+ let nextId=1;const queue=new Map(),seen=[];let photos=0;
+ const clock={setTimeout(fn){const id=nextId++;queue.set(id,fn);return id},clearTimeout(id){queue.delete(id)}};
+ const timer=scanner.createCountdown({onTick(n){seen.push(n)},onComplete(){photos++}},clock);
+ timer.update(true);
+ let [id,fn]=queue.entries().next().value;queue.delete(id);fn();
+ assert.equal(timer.remaining(),2);
+ timer.update(false);assert.equal(timer.remaining(),0);assert.equal(queue.size,0);assert.equal(photos,0);
+ timer.update(true);assert.equal(timer.remaining(),3);
+ for(let i=0;i<3;i++){[id,fn]=queue.entries().next().value;queue.delete(id);fn()}
+ assert.equal(photos,1);assert.deepEqual(seen,[3,2,0,3,2,1,0]);
+});
+
+test('leaving the screen disposes countdown with no delayed photo',()=>{
+ let pending;let removed=false;let calls=0;
+ const timer=scanner.createCountdown({onComplete(){calls++}},{
+   setTimeout(fn){pending=fn;return 9},
+   clearTimeout(){removed=true}
+ });
+ timer.update(true);timer.dispose();assert.equal(removed,true);
+ pending();assert.equal(calls,0);timer.update(true);assert.equal(calls,0);
+});
+
+
+test('stale or invalid face before timer finishes cancels capture and allows a retry',()=>{
+  let id=1;const queue=new Map();let stable=true;let shots=0;
+  const clock={setTimeout(fn){queue.set(id,fn);return id++},clearTimeout(i){queue.delete(i)}};
+  const c=scanner.createCountdown({isStillValid:()=>stable,onComplete(){shots++}},clock);
+  c.update(true);
+  stable=false;
+  const [key,fn]=queue.entries().next().value;queue.delete(key);fn();
+  assert.equal(shots,0);assert.equal(c.isRunning(),false);
+  stable=true;c.update(true);
+  for(let i=0;i<3;i++){const [k,f]=queue.entries().next().value;queue.delete(k);f()}
+  assert.equal(shots,1);
+});

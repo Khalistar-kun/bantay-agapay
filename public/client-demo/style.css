@@ -51,3 +51,16 @@
 @media (prefers-reduced-motion: reduce) {
   .face-progress > span { transition: none; }
 }
+
+
+/* Three-second hands-free photo countdown inside the square face preview. */
+.face-countdown {
+  position: absolute; inset: 0; z-index: 6;
+  display: grid; place-items: center;
+  background: rgba(31, 9, 22, .38);
+  color: #fff; font-size: clamp(5rem, 18vw, 8.5rem);
+  font-weight: 900; line-height: 1;
+  text-shadow: 0 9px 32px rgba(0,0,0,.45);
+  pointer-events: none;
+}
+.face-countdown[hidden] { display: none !important; }

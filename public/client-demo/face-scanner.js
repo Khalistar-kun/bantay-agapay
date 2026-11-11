@@ -232,7 +232,7 @@
   function start(video, callbacks) {
     const onProgress = callbacks?.onProgress || function () {};
     const onError = callbacks?.onError || function () {};
-    let stopped = false, frameId = 0, lastTime = -1, lastRun = 0, model;
+    let stopped = false, frameId = 0, lastTime = -1, lastRun = 0, lastValidFrame = -1, model;
     const progress = newProgress();
     const scratch = typeof root.document?.createElement === 'function'
       ? root.document.createElement('canvas') : null;
@@ -247,6 +247,7 @@
         try {
           if (++ticks % 3 === 1) quality = checkQuality(video, scratch);
           advance(progress, model.detectForVideo(video, now), quality);
+          lastValidFrame = progress.ready && progress.captureSafe ? now : -1;
           onProgress({ ...progress, ready: progress.ready && progress.captureSafe });
         } catch (_) {
           onError(new Error('Face analysis stopped. Retry the camera or use manual photo review.'));
@@ -270,7 +271,10 @@
     });
     return {
       stop, ready,
-      isReady: function () { return !stopped && progress.ready && progress.captureSafe; },
+      isReady: function () {
+        const fresh = !root.performance || lastValidFrame < 0 || root.performance.now() - lastValidFrame < 650;
+        return !stopped && progress.ready && progress.captureSafe && lastValidFrame >= 0 && fresh;
+      },
       reset: function () {
         Object.assign(progress, newProgress());
         if (!stopped) onProgress({ ...progress });
@@ -278,7 +282,53 @@
     };
   }
 
+  // Shared countdown. One verified, stable face starts 3 -> 2 -> 1.
+  // Invalid tracking, lighting or page visibility must cancel the timer.
+  function createCountdown(callbacks, clock) {
+    const schedule = clock?.setTimeout || function (fn, ms) { return root.setTimeout(fn, ms); };
+    const clear = clock?.clearTimeout || function (id) { return root.clearTimeout(id); };
+    const onTick = callbacks?.onTick || function () {};
+    const onComplete = callbacks?.onComplete || function () {};
+    const isStillValid = callbacks?.isStillValid || function () { return true; };
+    let timer = null, active = false, disposed = false, completed = false, remaining = 0;
+
+    function cancel() {
+      if (timer !== null) { clear(timer); timer = null; }
+      if (!active) return;
+      active = false;
+      remaining = 0;
+      onTick(0);
+    }
+    function tick(second) {
+      if (disposed || !active) return;
+      if (!isStillValid()) { cancel(); return; }
+      remaining = second;
+      onTick(second);
+      timer = schedule(function () {
+        timer = null;
+        if (disposed || !active) return;
+        if (second > 1) { tick(second - 1); return; }
+        active = false;
+        remaining = 0;
+        completed = true;
+        onTick(0);
+        onComplete();
+      }, 1000);
+    }
+    return {
+      update: function (valid) {
+        if (disposed || completed) return;
+        if (!valid) { cancel(); return; }
+        if (!active) { active = true; tick(3); }
+      },
+      cancel: cancel,
+      dispose: function () { cancel(); disposed = true; },
+      remaining: function () { return remaining; },
+      isRunning: function () { return active; },
+    };
+  }
+
   root.BantayFaceScan = {
-    start, inspect, evaluate: advance, newProgress, randomOrder, checkQuality,
+    start, inspect, evaluate: advance, newProgress, randomOrder, checkQuality, createCountdown,
   };
 })(window);

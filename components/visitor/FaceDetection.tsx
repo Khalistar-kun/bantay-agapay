@@ -17,7 +17,13 @@ interface ScannerSession {
   ready: Promise<void>
   isReady: () => boolean
 }
+interface CountdownSession {
+  update: (valid: boolean) => void
+  dispose: () => void
+  cancel: () => void
+}
 interface ScannerApi {
+  createCountdown: (callbacks: { isStillValid: () => boolean; onTick: (seconds: number) => void; onComplete: () => void }) => CountdownSession
   start: (
     video: HTMLVideoElement,
     options: { onProgress: (progress: Progress) => void; onError: (error: Error) => void }
@@ -50,6 +56,8 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const sessionRef = useRef<ScannerSession | null>(null)
+  const countdownRef = useRef<CountdownSession | null>(null)
+  const captureRef = useRef<(reviewOnly: boolean) => void>(() => {})
   const callbacksRef = useRef({ onSuccess, onError })
   callbacksRef.current = { onSuccess, onError }
   const [retryCount, setRetryCount] = useState(0)
@@ -57,6 +65,7 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
   const [message, setMessage] = useState("Requesting camera permission…")
   const [ready, setReady] = useState(false)
   const [percent, setPercent] = useState(0)
+  const [countdown, setCountdown] = useState(0)
   const [cameraAvailable, setCameraAvailable] = useState(false)
   const [capturedPhoto, setCapturedPhoto] = useState("")
   const [manualReview, setManualReview] = useState(false)
@@ -64,6 +73,8 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
 
   useEffect(() => {
     let disposed = false
+    const onHidden = () => { if (document.hidden) countdownRef.current?.update(false) }
+    document.addEventListener('visibilitychange', onHidden)
     const start = async () => {
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
@@ -83,16 +94,26 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
         setMessage("Loading on-device face scanner…")
         const scanner = await loadScanner()
         if (disposed) return
+        const countdownSession = scanner.createCountdown({
+          isStillValid: () => !disposed && !document.hidden && !!sessionRef.current?.isReady(),
+          onTick: (seconds) => { if (!disposed) setCountdown(seconds) },
+          onComplete: () => {
+            if (!disposed && !document.hidden && sessionRef.current?.isReady()) captureRef.current(false)
+          },
+        })
+        countdownRef.current = countdownSession
         const session = scanner.start(video, {
           onProgress: (progress) => {
             if (!disposed) {
               setMessage(progress.message)
               setReady(progress.ready)
               setPercent(progress.percent)
+              countdownRef.current?.update(progress.ready && !document.hidden)
             }
           },
           onError: (error) => {
             if (!disposed) {
+              countdownRef.current?.update(false)
               setScannerFailed(true)
               setMessage(error.message)
             }
@@ -113,6 +134,9 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
     void start()
     return () => {
       disposed = true
+      document.removeEventListener('visibilitychange', onHidden)
+      countdownRef.current?.dispose()
+      countdownRef.current = null
       sessionRef.current?.stop()
       sessionRef.current = null
       streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -134,6 +158,9 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
     const side = Math.min(video.videoWidth, video.videoHeight)
     context.drawImage(video, (video.videoWidth-side)/2, (video.videoHeight-side)/2,
       side, side, 0, 0, canvas.width, canvas.height)
+    countdownRef.current?.dispose()
+    countdownRef.current = null
+    setCountdown(0)
     setCapturedPhoto(canvas.toDataURL("image/jpeg", 0.78))
     setManualReview(reviewOnly)
     sessionRef.current?.stop()
@@ -142,6 +169,8 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
       ? "Photo captured for manual security review. No face-motion check was completed."
       : "Face-motion prompts completed. Review your photo; identity is checked by security.")
   }
+
+  captureRef.current = capture
 
   const upload = async (file?: File) => {
     if (!file) return
@@ -161,6 +190,9 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
       if (!ctx) throw new Error("Image conversion failed.")
       const side = Math.min(image.naturalWidth, image.naturalHeight)
       ctx.drawImage(image, (image.naturalWidth-side)/2, (image.naturalHeight-side)/2, side, side, 0, 0, 480, 480)
+      countdownRef.current?.dispose()
+      countdownRef.current = null
+      setCountdown(0)
       setCapturedPhoto(canvas.toDataURL("image/jpeg", 0.78))
       setManualReview(true)
       sessionRef.current?.stop()
@@ -177,6 +209,9 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
     setCapturedPhoto("")
     setReady(false)
     setPercent(0)
+    setCountdown(0)
+    countdownRef.current?.dispose()
+    countdownRef.current = null
     setCameraAvailable(false)
     setScannerFailed(false)
     setManualReview(false)
@@ -195,7 +230,8 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
           className={"h-full w-full object-cover " + (capturedPhoto ? "hidden" : "")} />
         {capturedPhoto ? <img src={capturedPhoto} alt="Visitor photo preview" className="absolute inset-0 w-full h-full object-cover" /> :
           <div className="pointer-events-none absolute inset-[12%] rounded-2xl border-2 border-dashed border-white/70" />}
-        {!capturedPhoto && ready && <div className="absolute bottom-3 inset-x-3 text-center rounded-lg bg-emerald-900/90 text-white px-3 py-2 text-sm">
+        {!capturedPhoto && countdown > 0 && <div aria-live="assertive" aria-label={`Auto capture in ${countdown} seconds`} className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/35 text-8xl font-extrabold text-white drop-shadow-xl">{countdown}</div>}
+        {!capturedPhoto && ready && countdown === 0 && <div className="absolute bottom-3 inset-x-3 text-center rounded-lg bg-emerald-900/90 text-white px-3 py-2 text-sm">
           Motion check complete — ready to capture
         </div>}
       </div>
@@ -218,8 +254,7 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
         </div>
       ) : (
         <div className="space-y-3">
-          <button type="button" onClick={() => capture(false)} disabled={!ready}
-            className="w-full rounded-lg bg-primary-600 text-white py-3 font-semibold disabled:opacity-50">Capture scanned photo</button>
+          <p className="text-center font-semibold text-primary-800">Photo automatically captured after a 3-second countdown when your face stays centered.</p>
           {cameraAvailable && <button type="button" onClick={() => capture(true)}
             className="w-full rounded-lg bg-gray-100 text-gray-800 py-3 font-semibold">
             Capture photo for manual review

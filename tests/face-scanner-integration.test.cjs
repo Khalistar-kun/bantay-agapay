@@ -40,3 +40,25 @@ test('both visitor scanner views are square and display progress',()=>{
  assert.match(react,/aspect-square w-full max-w-\[440px\]/)
  assert.match(react,/role="progressbar"/)
 })
+
+
+test('both visitor flows automatically capture after stable 3-second countdown',()=>{
+  const client=fs.readFileSync(path.join(base,'script.js'),'utf8')
+  const react=fs.readFileSync(path.join(__dirname,'../components/visitor/FaceDetection.tsx'),'utf8')
+  const engine=fs.readFileSync(path.join(base,'face-scanner.js'),'utf8')
+  const css=fs.readFileSync(path.join(base,'style.css'),'utf8')
+  assert.match(engine,/function createCountdown/)
+  assert.match(engine,/tick\(3\)/)
+  assert.match(client,/BantayFaceScan\.createCountdown/)
+  assert.match(client,/faceCountdown\?\.update\(progress\.ready && !document\.hidden\)/)
+  assert.match(client,/onComplete\(\)/)
+  assert.match(client,/captureFace\(false\)/)
+  assert.match(client,/document\.addEventListener\('visibilitychange'/)
+  assert.match(client,/id="face-countdown"/)
+  assert.match(css,/\.face-countdown\[hidden\] \{ display: none !important; \}/)
+  assert.match(react,/scanner\.createCountdown/)
+  assert.match(react,/countdownRef\.current\?\.update\(progress\.ready && !document\.hidden\)/)
+  assert.match(react,/captureRef\.current\(false\)/)
+  assert.match(react,/countdown > 0/)
+  assert.match(react,/countdownRef\.current\?\.dispose\(\)/)
+});

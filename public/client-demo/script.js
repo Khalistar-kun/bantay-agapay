@@ -42,9 +42,9 @@
   const fromLocal = location.protocol === 'file:';
   let preferred=isLiveProduction?'connected':localStorage.getItem('ba_demo_mode');
   if(!['offline','connected'].includes(preferred))preferred=sameOrigin?'connected':'offline';
-  const state={mode:isLiveProduction?'connected':fromLocal?'offline':preferred, role:'visitor',view:'welcome',step:0,form:{},photo:'',faceScanReady:false,faceScanPercent:0,faceReviewOnly:false,faceScanStatus:'Start the camera to check face presence and motion.',gps:null,gpsVerified:false,gpsLoading:false,gpsError:'',token:sessionStorage.getItem('ba_last_pass')||'',loginRole:'security',staffName:'',staffRole:'',staffLoggedIn:false,destinations:[...DESTS],pending:[],inside:[],history:[],summary:null,selected:null,filter:'',scanning:false,submitting:false};
+  const state={mode:isLiveProduction?'connected':fromLocal?'offline':preferred, role:'visitor',view:'welcome',step:0,form:{},photo:'',faceScanReady:false,faceScanPercent:0,faceCountdown:0,faceReviewOnly:false,faceScanStatus:'Start the camera to check face presence and motion.',gps:null,gpsVerified:false,gpsLoading:false,gpsError:'',token:sessionStorage.getItem('ba_last_pass')||'',loginRole:'security',staffName:'',staffRole:'',staffLoggedIn:false,destinations:[...DESTS],pending:[],inside:[],history:[],summary:null,selected:null,filter:'',scanning:false,submitting:false};
   let cameraStream=null, scanTimer=null, pollTimer=null, notificationTimer=null;
-  let faceScanSession=null, cameraSerial=0;
+  let faceScanSession=null, faceCountdown=null, cameraSerial=0;
   const toast = (msg) => { const el=$('#toast');el.textContent=msg;el.classList.add('visible');clearTimeout(notificationTimer);notificationTimer=setTimeout(()=>el.classList.remove('visible'),4200);};
   async function request(path,opts={}){
     if(state.mode!=='connected') throw Error('Connected mode is not active.');
@@ -60,7 +60,7 @@
     try {const data=await request('/api/client-demo?action=destinations');state.destinations=data.destinations||[];}
     catch(e){state.destinations=[];toast(e.message);}
   }
-  function stopCamera(){ cameraSerial++;if(faceScanSession){faceScanSession.stop();faceScanSession=null;}state.faceScanReady=false;if(scanTimer){clearInterval(scanTimer);scanTimer=null;}if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}state.scanning=false; }
+  function stopCamera(){ cameraSerial++;if(faceCountdown){faceCountdown.dispose();faceCountdown=null;}state.faceCountdown=0;if(faceScanSession){faceScanSession.stop();faceScanSession=null;}state.faceScanReady=false;if(scanTimer){clearInterval(scanTimer);scanTimer=null;}if(cameraStream){cameraStream.getTracks().forEach(t=>t.stop());cameraStream=null;}state.scanning=false; }
   function navigate(view){stopCamera();state.view=view;window.scrollTo(0,0);render();}
   function shell(content){
     let label=isLiveProduction?'Live school portal':state.mode==='offline'?'Offline demo':'Connected backend';
@@ -78,11 +78,11 @@
     return shell(hero('Face photo scanning','Detect one face, follow basic motion prompts, and take a photo for staff review. This does not verify identity.','Step 2 · Face scanning')+
       '<div class="workspace"><section class="panel panel-pad">'+wizard()+
       '<div class="note"><strong>Privacy and access</strong> — Live camera frames are analyzed on your device. The final image is sent to the school backend only when you register. A guard must approve entry. Face motion is not proof of liveness or identity.</div>'+
-      '<div class="face-box" id="face-holder">'+pic+(state.photo?'<span class="face-badge">Photo ready ✓</span>':'')+'</div>'+
+      '<div class="face-box" id="face-holder">'+pic+'<span id="face-countdown" class="face-countdown" aria-live="assertive" hidden></span>'+(state.photo?'<span class="face-badge">Photo ready ✓</span>':'')+'</div>'+
       '<p id="face-scan-status" class="note" role="status" aria-live="polite">'+esc(state.photo?label:state.faceScanStatus)+'</p>'+
       '<div class="face-progress" role="progressbar" aria-label="Face motion scan progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+(state.faceScanPercent||0)+'"><span id="face-progress-fill" style="width:'+(state.faceScanPercent||0)+'%"></span></div>'+
       '<div class="pill-row"><button type="button" class="btn secondary" data-action="start-camera">📷 Start face scan</button>'+
-      '<button type="button" class="btn light" id="face-capture-btn" data-action="capture-camera" disabled>Capture scanned photo</button>'+
+      '<span class="note">Auto photo capture after a 3-second countdown</span>'+
       '<button type="button" class="btn ghost" id="face-manual-btn" data-action="capture-manual" disabled>Use camera photo for manual review</button>'+
       '<label class="btn secondary" for="face-upload">Upload for manual review</label>'+
       '<input id="face-upload" type="file" accept="image/*" capture="user" hidden>'+
@@ -179,6 +179,11 @@
   async function selectVisit(id){let v=state.pending.concat(state.inside,state.history).find(x=>x.id===id)||db.visits.find(x=>x.id===id);if(!v)return;if(state.mode==='connected')try{const data=await request('/api/security/visit/'+encodeURIComponent(id));v={...v, ...data.visit,name:data.visit.full_name,reference:data.visit.reference_number,destination:data.visit.destination_name,visitorType:data.visit.visitor_type,photoPath:data.visit.face_reference_path};}catch(e){toast(e.message);}state.selected=v;state.view='staff';render();if(v.photoPath&&state.mode==='connected')try{const p=await request('/api/visit/face-photo?path='+encodeURIComponent(v.photoPath));if(state.selected?.id===v.id){state.selected.photo=p.url;render();}}catch{}}
   async function gateAction(action){const v=state.selected;if(!v)return;const expected=action==='checkout'?'INSIDE':'PENDING';if(v.status!==expected){toast(`Cannot ${action}: visitor is ${v.status}.`);return;}if(action==='deny'){const reason=prompt('Reason for denying entry:');if(!reason?.trim())return;v.reason=reason.trim();}if(!confirm(action==='approve'?`Approve ${v.name} for entry?`:action==='checkout'?`Record check-out for ${v.name}?`:`Deny ${v.name} entry?`))return;
     try{if(state.mode==='connected'){const path=action==='approve'?'/api/visit/approve':action==='checkout'?'/api/visit/checkout':'/api/visit/deny';let body=action==='checkout'&&v.token?{token:v.token,visitId:v.id}:action==='deny'?{visitId:v.id,reason:v.reason}:{visitId:v.id};await request(path,{method:'POST',body:JSON.stringify(body)});}else{const item=db.visits.find(x=>x.id===v.id);if(!item)throw Error('This visitor is not in the local demo database.');item.status=action==='approve'?'INSIDE':action==='checkout'?'EXITED':'DENIED';if(action==='approve')item.checkIn=nowIso();else if(action==='checkout')item.checkOut=nowIso();else item.reason=v.reason;db.logs.unshift({action,visitId:item.id,time:nowIso()});dbSave(db);}state.selected=null;toast(action==='approve'?'Entry approved and check-in recorded.':action==='checkout'?'Visitor checked out successfully.':'Entry denied.');await refreshStaff();}catch(e){toast(e.message);}}
+  function updateFaceCountdown(seconds){
+    state.faceCountdown=seconds;
+    const el=$('#face-countdown');
+    if(el){el.hidden=seconds===0;el.textContent=seconds>0?String(seconds):'';}
+  }
   function updateFaceStatus(message, ready, percent) {
     state.faceScanStatus=message;
     if(ready!==undefined) state.faceScanReady=ready;
@@ -186,13 +191,13 @@
     const bar=$('.face-progress');if(bar)bar.setAttribute('aria-valuenow',String(state.faceScanPercent));
     const fill=$('#face-progress-fill');if(fill)fill.style.width=state.faceScanPercent+'%';
     const el=$('#face-scan-status');if(el)el.textContent=message;
-    const button=$('#face-capture-btn');if(button)button.disabled=!state.faceScanReady;
   }
   async function startFaceCamera(){
     stopCamera();
     const attempt=cameraSerial;
     state.faceScanReady=false;
     state.faceScanPercent=0;
+    state.faceCountdown=0;
     state.faceReviewOnly=false;
     updateFaceStatus('Requesting camera permission…',false);
     try {
@@ -202,22 +207,31 @@
       cameraStream=stream;
       const holder=$('#face-holder');
       if(!holder){stopCamera();return;}
-      holder.innerHTML='<video autoplay muted playsinline id="live-video" aria-label="Live front camera"></video><span class="face-badge">Scanning face</span>';
+      holder.innerHTML='<video autoplay muted playsinline id="live-video" aria-label="Live front camera"></video><span class="face-badge">Scanning face</span><span id="face-countdown" class="face-countdown" aria-live="assertive" hidden></span>';
       const video=$('#live-video');
       video.srcObject=stream;
       await video.play();
       if(attempt!==cameraSerial)return;
       const manual=$('#face-manual-btn');if(manual)manual.disabled=false;
       updateFaceStatus('Loading the on-device face landmark model…',false);
-      if(!window.BantayFaceScan)throw Error('Face scanner was not loaded. Use manual photo review.');
+      if(!window.BantayFaceScan?.createCountdown)throw Error('Face scanner was not loaded. Use manual photo review.');
+      faceCountdown=window.BantayFaceScan.createCountdown({
+        isStillValid(){return attempt===cameraSerial && !document.hidden && !!faceScanSession?.isReady();},
+        onTick: updateFaceCountdown,
+        onComplete(){
+          if(attempt===cameraSerial && state.view==='face' && !document.hidden && faceScanSession?.isReady())captureFace(false);
+        }
+      });
       faceScanSession=window.BantayFaceScan.start(video,{
         onProgress(progress){
           if(attempt!==cameraSerial)return;
           updateFaceStatus(progress.message,progress.ready,progress.percent);
+          faceCountdown?.update(progress.ready && !document.hidden);
           const badge=holder.querySelector('.face-badge');if(badge)badge.textContent=progress.ready?'Motion check complete':'Scanning face';
         },
         onError(error){
           if(attempt!==cameraSerial)return;
+          faceCountdown?.update(false);
           updateFaceStatus((error?.message||'Face scan unavailable.')+' Use manual photo review.',false);
         }
       });
@@ -261,6 +275,7 @@
     if(e.target.id==='staff-login'){e.preventDefault();await staffLogin(e.target);}
     if(e.target.id==='qr-lookup'){e.preventDefault();await staffLookup(new FormData(e.target).get('token'));}
   });
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)faceCountdown?.update(false);});
   document.addEventListener('change',e=>{if(e.target.id==='face-upload')loadPhoto(e.target.files?.[0]);});
   document.addEventListener('input',e=>{if(e.target.id==='search-list'){state.filter=e.target.value;let active=document.activeElement,caret=active.selectionStart;render();const input=$('#search-list');input?.focus();input?.setSelectionRange(caret,caret);}});
   document.addEventListener('click',async e=>{
