@@ -6,3 +6,48 @@
 #face-scan-status { margin: 8px 0 14px; min-height: 52px; line-height: 1.5; }
 #face-capture-btn:disabled, #face-manual-btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
 @media (max-width: 630px) { .face-box video, .face-box img { height: min(72vw, 340px); } }
+
+
+/* Square (1:1) face camera preview for mobile and desktop. */
+.face-box {
+  width: min(100%, 440px);
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 1 / 1;
+  margin: 18px auto;
+  position: relative;
+  overflow: hidden;
+  border: 2px solid #8b1e37;
+  border-radius: 24px;
+  background: #230b18;
+  box-shadow: 0 16px 46px rgba(76, 16, 36, .16);
+}
+.face-box > video, .face-box > img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover;
+}
+.face-box > video { transform: scaleX(-1); }
+.face-box > .face-placeholder { color: #ffecef; }
+.face-box > .face-badge { z-index: 2; }
+.face-box::after {
+  content: ''; position: absolute; inset: 12%; z-index: 1;
+  border: 2px dashed rgba(255, 225, 206, .78);
+  border-radius: 23px; pointer-events: none;
+}
+.face-progress {
+  height: 8px; width: min(100%, 440px);
+  border-radius: 999px; margin: 10px auto 18px;
+  background: #f0dde4; overflow: hidden;
+}
+.face-progress > span {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, #82172a, #c99a2e);
+  border-radius: inherit; transition: width .18s ease-out;
+}
+@media (max-width: 630px) {
+  .face-box { width: min(100%, 88vw); aspect-ratio: 1 / 1; }
+  .face-box > video, .face-box > img { height: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .face-progress > span { transition: none; }
+}

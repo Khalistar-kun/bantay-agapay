@@ -42,7 +42,7 @@
   const fromLocal = location.protocol === 'file:';
   let preferred=isLiveProduction?'connected':localStorage.getItem('ba_demo_mode');
   if(!['offline','connected'].includes(preferred))preferred=sameOrigin?'connected':'offline';
-  const state={mode:isLiveProduction?'connected':fromLocal?'offline':preferred, role:'visitor',view:'welcome',step:0,form:{},photo:'',faceScanReady:false,faceReviewOnly:false,faceScanStatus:'Start the camera to check face presence and motion.',gps:null,gpsVerified:false,gpsLoading:false,gpsError:'',token:sessionStorage.getItem('ba_last_pass')||'',loginRole:'security',staffName:'',staffRole:'',staffLoggedIn:false,destinations:[...DESTS],pending:[],inside:[],history:[],summary:null,selected:null,filter:'',scanning:false,submitting:false};
+  const state={mode:isLiveProduction?'connected':fromLocal?'offline':preferred, role:'visitor',view:'welcome',step:0,form:{},photo:'',faceScanReady:false,faceScanPercent:0,faceReviewOnly:false,faceScanStatus:'Start the camera to check face presence and motion.',gps:null,gpsVerified:false,gpsLoading:false,gpsError:'',token:sessionStorage.getItem('ba_last_pass')||'',loginRole:'security',staffName:'',staffRole:'',staffLoggedIn:false,destinations:[...DESTS],pending:[],inside:[],history:[],summary:null,selected:null,filter:'',scanning:false,submitting:false};
   let cameraStream=null, scanTimer=null, pollTimer=null, notificationTimer=null;
   let faceScanSession=null, cameraSerial=0;
   const toast = (msg) => { const el=$('#toast');el.textContent=msg;el.classList.add('visible');clearTimeout(notificationTimer);notificationTimer=setTimeout(()=>el.classList.remove('visible'),4200);};
@@ -80,6 +80,7 @@
       '<div class="note"><strong>Privacy and access</strong> — Live camera frames are analyzed on your device. The final image is sent to the school backend only when you register. A guard must approve entry. Face motion is not proof of liveness or identity.</div>'+
       '<div class="face-box" id="face-holder">'+pic+(state.photo?'<span class="face-badge">Photo ready ✓</span>':'')+'</div>'+
       '<p id="face-scan-status" class="note" role="status" aria-live="polite">'+esc(state.photo?label:state.faceScanStatus)+'</p>'+
+      '<div class="face-progress" role="progressbar" aria-label="Face motion scan progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+(state.faceScanPercent||0)+'"><span id="face-progress-fill" style="width:'+(state.faceScanPercent||0)+'%"></span></div>'+
       '<div class="pill-row"><button type="button" class="btn secondary" data-action="start-camera">📷 Start face scan</button>'+
       '<button type="button" class="btn light" id="face-capture-btn" data-action="capture-camera" disabled>Capture scanned photo</button>'+
       '<button type="button" class="btn ghost" id="face-manual-btn" data-action="capture-manual" disabled>Use camera photo for manual review</button>'+
@@ -178,9 +179,12 @@
   async function selectVisit(id){let v=state.pending.concat(state.inside,state.history).find(x=>x.id===id)||db.visits.find(x=>x.id===id);if(!v)return;if(state.mode==='connected')try{const data=await request('/api/security/visit/'+encodeURIComponent(id));v={...v, ...data.visit,name:data.visit.full_name,reference:data.visit.reference_number,destination:data.visit.destination_name,visitorType:data.visit.visitor_type,photoPath:data.visit.face_reference_path};}catch(e){toast(e.message);}state.selected=v;state.view='staff';render();if(v.photoPath&&state.mode==='connected')try{const p=await request('/api/visit/face-photo?path='+encodeURIComponent(v.photoPath));if(state.selected?.id===v.id){state.selected.photo=p.url;render();}}catch{}}
   async function gateAction(action){const v=state.selected;if(!v)return;const expected=action==='checkout'?'INSIDE':'PENDING';if(v.status!==expected){toast(`Cannot ${action}: visitor is ${v.status}.`);return;}if(action==='deny'){const reason=prompt('Reason for denying entry:');if(!reason?.trim())return;v.reason=reason.trim();}if(!confirm(action==='approve'?`Approve ${v.name} for entry?`:action==='checkout'?`Record check-out for ${v.name}?`:`Deny ${v.name} entry?`))return;
     try{if(state.mode==='connected'){const path=action==='approve'?'/api/visit/approve':action==='checkout'?'/api/visit/checkout':'/api/visit/deny';let body=action==='checkout'&&v.token?{token:v.token,visitId:v.id}:action==='deny'?{visitId:v.id,reason:v.reason}:{visitId:v.id};await request(path,{method:'POST',body:JSON.stringify(body)});}else{const item=db.visits.find(x=>x.id===v.id);if(!item)throw Error('This visitor is not in the local demo database.');item.status=action==='approve'?'INSIDE':action==='checkout'?'EXITED':'DENIED';if(action==='approve')item.checkIn=nowIso();else if(action==='checkout')item.checkOut=nowIso();else item.reason=v.reason;db.logs.unshift({action,visitId:item.id,time:nowIso()});dbSave(db);}state.selected=null;toast(action==='approve'?'Entry approved and check-in recorded.':action==='checkout'?'Visitor checked out successfully.':'Entry denied.');await refreshStaff();}catch(e){toast(e.message);}}
-  function updateFaceStatus(message, ready) {
+  function updateFaceStatus(message, ready, percent) {
     state.faceScanStatus=message;
     if(ready!==undefined) state.faceScanReady=ready;
+    if(Number.isFinite(percent))state.faceScanPercent=Math.max(0,Math.min(100,percent));
+    const bar=$('.face-progress');if(bar)bar.setAttribute('aria-valuenow',String(state.faceScanPercent));
+    const fill=$('#face-progress-fill');if(fill)fill.style.width=state.faceScanPercent+'%';
     const el=$('#face-scan-status');if(el)el.textContent=message;
     const button=$('#face-capture-btn');if(button)button.disabled=!state.faceScanReady;
   }
@@ -188,6 +192,7 @@
     stopCamera();
     const attempt=cameraSerial;
     state.faceScanReady=false;
+    state.faceScanPercent=0;
     state.faceReviewOnly=false;
     updateFaceStatus('Requesting camera permission…',false);
     try {
@@ -208,7 +213,7 @@
       faceScanSession=window.BantayFaceScan.start(video,{
         onProgress(progress){
           if(attempt!==cameraSerial)return;
-          updateFaceStatus(progress.message,progress.ready);
+          updateFaceStatus(progress.message,progress.ready,progress.percent);
           const badge=holder.querySelector('.face-badge');if(badge)badge.textContent=progress.ready?'Motion check complete':'Scanning face';
         },
         onError(error){
@@ -262,7 +267,7 @@
     const row=e.target.closest('[data-review-id]');if(row){await selectVisit(row.dataset.reviewId);return;}
     const button=e.target.closest('[data-action]');if(!button)return;e.preventDefault();const act=button.dataset.action;
     if(act==='home'){state.role='visitor';navigate('welcome');}
-    else if(act==='begin'){state.step=0;state.photo='';state.faceReviewOnly=false;state.faceScanStatus='Start the camera to check face presence and motion.';state.gps=null;state.gpsVerified=false;state.gpsError='';state.form={};await loadDestinations();navigate('info');}
+    else if(act==='begin'){state.step=0;state.photo='';state.faceReviewOnly=false;state.faceScanPercent=0;state.faceScanStatus='Start the camera to check face presence and motion.';state.gps=null;state.gpsVerified=false;state.gpsError='';state.form={};await loadDestinations();navigate('info');}
     else if(act==='back-info'){state.step=0;navigate('info');}
     else if(act==='back-face'){state.step=1;navigate('face');}
     else if(act==='go-gps'){if(!state.photo){toast('Capture a photo before continuing.');return;}state.step=2;navigate('gps');}
@@ -270,7 +275,7 @@
     else if(act==='start-camera')await startFaceCamera();
     else if(act==='capture-camera')captureFace(false);
     else if(act==='capture-manual')captureFace(true);
-    else if(act==='retake'){stopCamera();state.photo='';state.faceReviewOnly=false;state.faceScanStatus='Start the camera to check face presence and motion.';render();}
+    else if(act==='retake'){stopCamera();state.photo='';state.faceReviewOnly=false;state.faceScanPercent=0;state.faceScanStatus='Start the camera to check face presence and motion.';render();}
     else if(act==='placeholder-photo'&&state.mode==='offline')fictionalPhoto();
     else if(act==='gps')useGps();
     else if(act==='submit-visit')await submitVisit();

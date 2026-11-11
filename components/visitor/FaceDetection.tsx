@@ -10,6 +10,7 @@ interface Progress {
   phase: string
   ready: boolean
   message: string
+  percent: number
 }
 interface ScannerSession {
   stop: () => void
@@ -55,6 +56,7 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState("Requesting camera permission…")
   const [ready, setReady] = useState(false)
+  const [percent, setPercent] = useState(0)
   const [cameraAvailable, setCameraAvailable] = useState(false)
   const [capturedPhoto, setCapturedPhoto] = useState("")
   const [manualReview, setManualReview] = useState(false)
@@ -86,6 +88,7 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
             if (!disposed) {
               setMessage(progress.message)
               setReady(progress.ready)
+              setPercent(progress.percent)
             }
           },
           onError: (error) => {
@@ -173,6 +176,7 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
   const retake = () => {
     setCapturedPhoto("")
     setReady(false)
+    setPercent(0)
     setCameraAvailable(false)
     setScannerFailed(false)
     setManualReview(false)
@@ -186,14 +190,18 @@ export function FaceDetection({ onSuccess, onError }: FaceDetectionProps) {
       <div role="status" aria-live="polite" className="rounded-lg bg-primary-50 p-4 text-sm font-semibold text-primary-900">
         {loading ? "Starting camera and face scanner…" : message}
       </div>
-      <div className="relative overflow-hidden rounded-xl bg-gray-950 aspect-square max-w-lg mx-auto">
+      <div className="relative overflow-hidden rounded-[24px] border-2 border-primary-700 bg-gray-950 aspect-square w-full max-w-[440px] mx-auto shadow-xl">
         <video ref={videoRef} muted autoPlay playsInline
           className={"h-full w-full object-cover " + (capturedPhoto ? "hidden" : "")} />
         {capturedPhoto ? <img src={capturedPhoto} alt="Visitor photo preview" className="absolute inset-0 w-full h-full object-cover" /> :
-          <div className="pointer-events-none absolute inset-[14%] rounded-[42%] border-2 border-dashed border-white/70" />}
+          <div className="pointer-events-none absolute inset-[12%] rounded-2xl border-2 border-dashed border-white/70" />}
         {!capturedPhoto && ready && <div className="absolute bottom-3 inset-x-3 text-center rounded-lg bg-emerald-900/90 text-white px-3 py-2 text-sm">
           Motion check complete — ready to capture
         </div>}
+      </div>
+      <div role="progressbar" aria-label="Face motion scan progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}
+        className="h-2 w-full max-w-[440px] mx-auto overflow-hidden rounded-full bg-primary-100">
+        <div className="h-full rounded-full bg-primary-700" style={{width: `${percent}%`}} />
       </div>
       <p className="text-xs text-gray-600">
         This checks face presence and simple movements on your device. It does not identify you or prove liveness.

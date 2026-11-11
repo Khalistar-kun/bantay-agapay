@@ -28,3 +28,15 @@ test('original React face scanning delegates to shared scanner; skin pixel simul
  assert.match(code,/Motion check complete/)
  assert.doesNotMatch(code,/faceScore|faceConfidence|skin tones|FACE_VERIFIED/)
 })
+
+test('both visitor scanner views are square and display progress',()=>{
+ const css=fs.readFileSync(path.join(base,'style.css'),'utf8')
+ const js=fs.readFileSync(path.join(base,'script.js'),'utf8')
+ const react=fs.readFileSync(path.join(__dirname,'../components/visitor/FaceDetection.tsx'),'utf8')
+ assert.match(css,/\.face-box\s*\{[^}]*aspect-ratio:\s*1\s*\/\s*1/s)
+ assert.match(css,/\.face-box\s*>\s*video,\s*\.face-box\s*>\s*img\s*\{[^}]*height:\s*100%/s)
+ assert.match(js,/id="face-progress-fill"/)
+ assert.match(js,/progress\.percent/)
+ assert.match(react,/aspect-square w-full max-w-\[440px\]/)
+ assert.match(react,/role="progressbar"/)
+})
