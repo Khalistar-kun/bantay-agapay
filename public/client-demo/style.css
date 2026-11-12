@@ -64,3 +64,133 @@
   pointer-events: none;
 }
 .face-countdown[hidden] { display: none !important; }
+
+
+/* Bantay-Agapay mobile layout safety (320px phones to full desktop)
+   Layout stays within viewport; only deliberate map zoom may scroll inside its panel. */
+html { max-width: 100%; }
+body, #app, .shell { min-width: 0; max-width: 100%; }
+.main, .workspace, .dashboard-layout, .panel, .panel-pad,
+.sidebar-stack, .stats, .review, .review-grid, .form-grid,
+.mode-choice, .welcome-actions, .pass, .pass-details,
+.topbar, .hero, .hero > div, .table-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+.workspace > *, .dashboard-layout > *, .sidebar-stack > *,
+.form-grid > *, .review-grid > *, .mode-choice > *, .stats > * {
+  min-width: 0;
+}
+.panel-pad, .stat, .review-list, .review-grid, .panel-head {
+  overflow-wrap: anywhere;
+}
+input, select, textarea { max-width: 100%; min-width: 0; }
+img, svg, video, canvas { max-width: 100%; }
+.btn, .tab, .choice { white-space: normal; text-align: center; overflow-wrap: anywhere; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.face-box { max-width: 100%; flex: none; }
+.face-box > video, .face-box > img { max-width: none; }
+#qr-video {
+  height: 100% !important;
+  width: 100% !important;
+  object-fit: cover !important;
+  transform: none !important; /* Back camera must not mirror QR codes. */
+}
+#toast { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); width: auto; max-width: 360px; margin-left: auto; }
+@media (max-width: 630px) {
+  .main { width: 100%; padding: 18px 12px 50px; }
+  .topbar { gap: 8px; padding: 10px 12px; height: auto; min-height: 66px; }
+  .brand { min-width: 0; gap: 8px; }
+  .brand > div { min-width: 0; }
+  .brand strong { font-size: .82rem; line-height: 1.18; }
+  .brand span { display: block; font-size: .6rem; line-height: 1.2; overflow-wrap: anywhere; }
+  .top-actions { gap: 5px; flex-shrink: 0; }
+  .top-actions .btn { min-height: 40px; padding: 8px 10px; }
+  .hero { min-height: 0; padding: 26px 18px; }
+  .hero h1 { font-size: clamp(1.55rem, 7.3vw, 2rem); overflow-wrap: anywhere; }
+  .hero p { font-size: .91rem; }
+  .hero::before, .hero::after { opacity: .25; }
+  .workspace, .dashboard-layout, .sidebar-stack, .mode-choice, .form-grid { grid-template-columns: minmax(0,1fr); }
+  .panel-pad { padding: 18px 16px; }
+  .panel-head, .split-header { align-items: flex-start; flex-wrap: wrap; }
+  .stats { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .stat { padding: 14px 12px; }
+  .stat strong { font-size: clamp(1.4rem,6vw,1.9rem); }
+  .steps { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 4px; }
+  .step { min-width: 0; flex-direction: column; text-align: center; font-size: .64rem; line-height: 1.25; }
+  .step::after { display: none; }
+  .step-num { min-height: 26px; min-width: 26px; }
+  .welcome-actions, .foot-actions, .pill-row, .review-actions { gap: 8px; flex-wrap: wrap; }
+  .welcome-actions > .btn, .foot-actions > .btn,
+  .pill-row > .btn, .pill-row > label.btn, .review-actions > .btn {
+    flex: 1 1 100%; max-width: 100%; min-width: 0;
+  }
+  .review-grid { grid-template-columns: minmax(0,1fr); }
+  .review-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .scan-entry { flex-direction: column; }
+  .scan-entry > * { width: 100%; }
+  .tabs { gap: 6px; }
+  .tab { flex: 1 1 auto; min-width: 0; padding: 9px 11px; font-size: .8rem; }
+  .face-box { width: min(100%, 390px); aspect-ratio: 1/1; }
+  .face-box > video, .face-box > img { width: 100%; height: 100%; }
+  .pass { width: 100%; }
+  .pass canvas { max-width: min(100%,216px); height: auto; }
+  .pass-details { gap: 8px; }
+  .table-wrap { overflow-x: visible; width: 100%; }
+  .table { min-width: 0; display: block; width: 100%; border-collapse: separate; }
+  .table thead {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+  .table tbody { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; padding: 0 12px 14px; }
+  .table tbody tr {
+    display: block; min-width: 0; background: #fff;
+    border: 1px solid var(--line); border-radius: 13px;
+    overflow: hidden; box-shadow: 0 6px 18px rgba(76,16,36,.045);
+  }
+  .table tbody td {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 12px; min-width: 0; padding: 11px 12px;
+    border-top: 1px solid #f4ecf0; text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .table tbody td:first-child { border-top: 0; }
+  .table tbody td:not(.empty)::before {
+    content: attr(data-label); color: var(--muted);
+    font-weight: 700; font-size: .76rem; text-align: left;
+    flex: 0 0 34%; align-self: center;
+  }
+  .table tbody td strong, .table tbody td small { overflow-wrap: anywhere; }
+  .table tbody td.empty { display: block; text-align: center; }
+}
+@media (max-width: 390px) {
+  .main { padding-inline: 10px; }
+  .topbar { padding-inline: 9px; }
+  .brand img { width: 34px; height: 34px; }
+  .brand strong { font-size: .76rem; }
+  .brand span { font-size: .54rem; }
+  .top-actions .btn { font-size: .73rem; padding: 8px; }
+  .stats, .review-list, .pass-details { grid-template-columns: minmax(0,1fr); }
+  .stat strong { font-size: 1.65rem; }
+  .panel-pad { padding: 15px 12px; }
+  .hero { padding: 22px 16px; }
+  .table tbody { padding-inline: 8px; }
+}
+
+
+/* Make the visitor name and type stack neatly in mobile table cards. */
+@media (max-width: 630px) {
+  .table tbody td[data-label="Visitor"] {
+    display: grid;
+    grid-template-columns: 34% minmax(0,1fr);
+    gap: 3px 12px;
+    text-align: right;
+  }
+  .table tbody td[data-label="Visitor"]::before { grid-column: 1; grid-row: 1 / span 2; }
+  .table tbody td[data-label="Visitor"] > strong,
+  .table tbody td[data-label="Visitor"] > small {
+    grid-column: 2;
+    min-width: 0;
+    justify-self: end;
+  }
+}

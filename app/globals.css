@@ -38,3 +38,22 @@ main h1, main h2 { letter-spacing: -.025em; }
 .text-primary-600, .text-primary-700, .text-primary-800 { color: var(--ba-wine); }
 .border-primary-200 { border-color: #f6c8d4; }
 .rounded-lg.shadow-md { box-shadow: 0 14px 42px rgba(76,16,36,.09); }
+
+
+/* Shared mobile safety for original Next.js visitor, security and admin pages.
+   Preserve intrinsic map/photo aspect ratios; do not widen the document. */
+html, body { max-width: 100%; }
+@media (max-width: 640px) {
+  body { overflow-x: clip; }
+  main, main > div, main > section,
+  main section, main article, main aside, main header {
+    min-width: 0;
+    max-width: 100%;
+  }
+  main .grid > *, main .flex > * { min-width: 0; }
+  main h1, main h2, main h3, main p, main label { overflow-wrap: anywhere; }
+  main img, main svg, main video, main canvas { max-width: 100%; }
+  main input, main select, main textarea { min-width: 0; max-width: 100%; }
+  main .overflow-x-auto { max-width: 100%; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+  main button, main a { overflow-wrap: anywhere; }
+}

@@ -9,7 +9,7 @@ type Destination = {
   active: boolean; map_x: number | null; map_y: number | null
 }
 type Mode = "view" | "gate" | "pin" | "route"
-const inputStyle = "rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400"
+const inputStyle = "min-w-0 max-w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400"
 const buttonStyle = "rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
 
 export default function CampusWayfindingEditor() {
@@ -23,6 +23,7 @@ export default function CampusWayfindingEditor() {
   const [instructions, setInstructions] = useState("")
   const [mode, setMode] = useState<Mode>("view")
   const [loading, setLoading] = useState(true)
+  const [mapZoom, setMapZoom] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
@@ -136,17 +137,17 @@ export default function CampusWayfindingEditor() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf6f7] text-gray-900">
+    <div className="min-h-screen w-full min-w-0 bg-[#faf6f7] text-gray-900 overflow-x-clip">
       <header className="border-b border-rose-100 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 py-4 flex flex-col sm:flex-row flex-wrap sm:items-center sm:justify-between gap-3">
           <div><p className="text-xs font-bold uppercase tracking-[.16em] text-[#8b1e37]">Bantay-Agapay · Administrator</p>
             <h1 className="text-2xl font-extrabold text-[#541322]">Campus Wayfinding</h1></div>
-          <div className="flex gap-4 text-sm font-semibold text-[#82172a]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-semibold text-[#82172a]">
             <Link href="/admin/destinations">Destination Management</Link><Link href="/admin">Admin Dashboard</Link>
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-7 space-y-5">
+      <main className="mx-auto w-full min-w-0 max-w-7xl px-3 sm:px-4 py-5 sm:py-7 space-y-5">
         <div className="rounded-2xl border border-rose-100 bg-white p-5 shadow-sm">
           <h2 className="font-bold text-lg">Design safe campus walking routes</h2>
           <p className="text-sm text-gray-600 mt-1">Set the main entrance, pin each faculty or office, then tap along the <strong>actual permitted walkway</strong> from gate to destination. A path is never generated automatically through buildings.</p>
@@ -155,16 +156,20 @@ export default function CampusWayfindingEditor() {
         {error && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-red-900">{error} <Link className="underline" href="/login">Staff login</Link></div>}
         {notice && <div role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900">{notice}</div>}
         {loading ? <p>Loading campus destinations…</p> : (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(270px,1fr)] items-start">
-            <section className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm">
+          <div className="grid min-w-0 grid-cols-1 gap-4 lg:gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(270px,1fr)] items-start">
+            <section className="min-w-0 max-w-full rounded-2xl border border-rose-100 bg-white p-3 sm:p-4 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3 pb-4">
                 <h2 className="font-bold">Campus Map</h2>
-                <span className="text-xs font-semibold text-[#82172a]">{mode === "view" ? "Preview" : mode === "gate" ? "Tap the gate position" : mode === "pin" ? "Tap destination position" : "Tap each walkway turning point"}</span>
+                <button type="button" className="w-full sm:w-auto rounded-lg border border-[#82172a] px-3 py-2 text-sm font-semibold text-[#82172a]" onClick={() => setMapZoom(value => !value)}>
+                  {mapZoom ? "Fit map to screen" : "Zoom map for accurate pinning"}
+                </button>
+                <span className="w-full text-xs font-semibold text-[#82172a]">{mode === "view" ? "Preview" : mode === "gate" ? "Tap the gate position" : mode === "pin" ? "Tap destination position" : "Tap each walkway turning point"}</span>
               </div>
-              <div className="relative overflow-hidden rounded-xl border border-rose-200 bg-[#f6ebee]">
+              <div className="w-full max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-rose-200 bg-[#f6ebee]">
+                <div className={mapZoom ? "relative w-[820px] min-w-[820px]" : "relative w-full min-w-0"}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img ref={mapRef} src="/campus-map.png" alt="AFGBMTS campus map. Click to place the selected marker or walking route points."
-                  onClick={mapClick} draggable={false} className={"block w-full h-auto select-none " + (mode === "view" ? "" : "cursor-crosshair")} />
+                  onClick={mapClick} draggable={false} className={"block w-full h-auto max-w-none select-none " + (mode === "view" ? "" : "cursor-crosshair")} />
                 <svg viewBox={"0 0 " + MAP_WIDTH + " " + MAP_HEIGHT} preserveAspectRatio="none"
                   className="pointer-events-none absolute inset-0 h-full w-full" role="img" aria-label="Walking route and location markers">
                   <defs>
@@ -180,13 +185,14 @@ export default function CampusWayfindingEditor() {
                   {drawnGate && <g><circle cx={drawnGate.x} cy={drawnGate.y} r="18" fill="#148359" stroke="white" strokeWidth="6"/><text x={drawnGate.x+24} y={drawnGate.y-18} fontSize="25" fontWeight="bold" fill="#148359" stroke="white" strokeWidth="4" paintOrder="stroke">START · GATE</text></g>}
                   {drawnEnd && <g><circle cx={drawnEnd.x} cy={drawnEnd.y} r="18" fill="#82172a" stroke="white" strokeWidth="6"/><text x={drawnEnd.x+24} y={drawnEnd.y-18} fontSize="25" fontWeight="bold" fill="#82172a" stroke="white" strokeWidth="4" paintOrder="stroke">DESTINATION</text></g>}
                 </svg>
+                </div>
               </div>
               <div className="flex flex-wrap gap-3 mt-4 text-xs font-medium text-gray-700">
                 <span><span className="text-emerald-700">●</span> Main gate</span><span><span className="text-[#82172a]">●</span> Destination</span><span>— Approved walkway</span>
               </div>
               <p className="text-xs text-gray-500 mt-2">Pin changes and gate changes automatically invalidate previously published paths until they are reviewed and republished.</p>
             </section>
-            <aside className="rounded-2xl border border-rose-100 bg-white p-5 shadow-sm space-y-5">
+            <aside className="min-w-0 max-w-full rounded-2xl border border-rose-100 bg-white p-4 sm:p-5 shadow-sm space-y-5 break-words">
               <div className="space-y-2">
                 <label htmlFor="destination" className="text-sm font-bold">Select faculty, office or building</label>
                 <select id="destination" className={inputStyle + " w-full"} value={selectedId}
@@ -201,7 +207,7 @@ export default function CampusWayfindingEditor() {
                 <p className="text-xs text-gray-500">{gate ? "Current gate: " + gate.x + ", " + gate.y : "Not configured yet"}</p>
                 <button type="button" className={buttonStyle + " w-full bg-gray-100 text-gray-900"} onClick={() => {setGateDraft(gate);setMode("gate")}}>Choose Gate on Map</button>
                 {mode === "gate" && <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-2">
                     {(["x","y"] as const).map(k => <label key={k} className="text-xs font-medium">{k.toUpperCase()}
                       <input type="number" min={0} max={k === "x" ? MAP_WIDTH : MAP_HEIGHT} className={inputStyle+" w-full"}
                         value={gateDraft?.[k] ?? ""} onChange={e => setGateDraft(old => point({x:k==="x"?Number(e.target.value):old?.x,y:k==="y"?Number(e.target.value):old?.y}))} />
@@ -216,7 +222,7 @@ export default function CampusWayfindingEditor() {
                 <button type="button" disabled={!selected} className={buttonStyle + " w-full bg-gray-100 text-gray-900"}
                   onClick={() => {setPinDraft(end);setMode("pin")}}>Choose Destination Pin</button>
                 {mode === "pin" && <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-2">
                     {(["x","y"] as const).map(k => <label key={k} className="text-xs font-medium">{k.toUpperCase()}
                       <input type="number" min={0} max={k === "x" ? MAP_WIDTH : MAP_HEIGHT} className={inputStyle+" w-full"}
                         value={pinDraft?.[k] ?? ""} onChange={e => setPinDraft(old => point({x:k==="x"?Number(e.target.value):old?.x,y:k==="y"?Number(e.target.value):old?.y}))} />
@@ -230,7 +236,7 @@ export default function CampusWayfindingEditor() {
                 <p className="text-xs text-gray-500">Tap each safe walkway turn, in order, between the green gate and the destination marker. At least one waypoint is required. No route will cross buildings automatically.</p>
                 <button type="button" disabled={!gate || !end} className={buttonStyle + " w-full bg-gray-100 text-gray-900"}
                   onClick={() => setMode("route")}>{mode === "route" ? "Drawing route · Tap the map" : "Edit Walking Path"}</button>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <button type="button" className={buttonStyle+" bg-gray-100 flex-1"} disabled={!waypoints.length || saving}
                     onClick={() => setWaypoints(p => p.slice(0,-1))}>Undo Last</button>
                   <button type="button" className={buttonStyle+" bg-gray-100 flex-1"} disabled={!waypoints.length || saving}
