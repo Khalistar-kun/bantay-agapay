@@ -171,12 +171,17 @@ export default function DestinationsPage() {
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Destinations</h2>
             <p className="text-gray-600">Manage campus buildings visitors can visit</p>
           </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <Link href="/admin/wayfinding" className="px-4 py-2 border border-[#82172a] text-[#82172a] rounded-lg font-semibold hover:bg-rose-50 transition">
+              Draw Campus Walking Routes
+            </Link>
           <button
             onClick={() => setShowForm((v) => !v)}
             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-semibold"
           >
             {showForm ? "Cancel" : "+ New Destination"}
           </button>
+          </div>
         </div>
 
         {showForm && (
