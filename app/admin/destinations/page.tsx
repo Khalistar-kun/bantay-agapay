@@ -155,8 +155,8 @@ export default function DestinationsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
+        <div className="max-w-5xl w-full min-w-0 mx-auto px-3 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-wrap gap-3 justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay Admin</h1>
             <Link href="/admin" className="text-primary-600 hover:text-primary-800">
               ← Back to Dashboard
@@ -165,18 +165,23 @@ export default function DestinationsPage() {
         </div>
       </nav>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
+      <div className="max-w-5xl w-full min-w-0 mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Destinations</h2>
             <p className="text-gray-600">Manage campus buildings visitors can visit</p>
           </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-wrap w-full sm:w-auto">
+            <Link href="/admin/wayfinding" className="px-4 py-2 border border-[#82172a] text-[#82172a] rounded-lg font-semibold hover:bg-rose-50 transition">
+              Draw Campus Walking Routes
+            </Link>
           <button
             onClick={() => setShowForm((v) => !v)}
             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-semibold"
           >
             {showForm ? "Cancel" : "+ New Destination"}
           </button>
+          </div>
         </div>
 
         {showForm && (
@@ -282,7 +287,7 @@ export default function DestinationsPage() {
           <div className="bg-white rounded-lg shadow-md divide-y">
             {destinations.map((d) => (
               <div key={d.id}>
-                <div className="p-6 flex items-center justify-between">
+                <div className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
                   <div>
                     <p className="font-semibold text-gray-900">{d.name}</p>
                     <p className="text-sm text-gray-500">
@@ -296,7 +301,7 @@ export default function DestinationsPage() {
                       )}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
                     <button
                       onClick={() => (pinningId === d.id ? setPinningId(null) : openPinMap(d))}
                       className="px-3 py-1 text-sm border border-primary-300 text-primary-700 rounded-lg hover:bg-primary-50 transition"
@@ -321,7 +326,7 @@ export default function DestinationsPage() {
                 </div>
 
                 {pinningId === d.id && (
-                  <div className="px-6 pb-6">
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6">
                     <p className="text-sm text-gray-600 mb-2">Click on the map to set this destination's marker position.</p>
                     <div className="relative w-full border rounded-lg overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -345,7 +350,7 @@ export default function DestinationsPage() {
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center justify-between mt-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-3">
                       <p className="text-xs text-gray-500">
                         {pinCoords ? `x: ${pinCoords.x}, y: ${pinCoords.y}` : "Click the map to place a marker"}
                       </p>

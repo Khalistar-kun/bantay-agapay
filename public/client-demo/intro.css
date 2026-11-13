@@ -1,0 +1,238 @@
+/* BANTAY-AGAPAY — THE GATE AWAKENS
+   0–1s: a signal appears; 1–2s: logo emerges; 2–3.5s: protective pulse;
+   3.5–4.15s: logo accelerates forward as the real website is revealed.
+   The logo has no box/card, and the splash never stores a viewed flag. */
+.ba-splash {
+  --ba-gold: #f7d79b;
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  background: radial-gradient(ellipse at 50% 40%, #b6304b 0%, #8a1b36 27%, #631227 59%, #270711 100%);
+  isolation: isolate;
+  cursor: pointer;
+  animation: ba-scene-depart 4.15s ease-in-out both;
+}
+.ba-splash > * { pointer-events: none; }
+.ba-splash-aurora {
+  position: absolute;
+  inset: -35%;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse at 22% 26%, rgba(255,198,148,.22), transparent 36%),
+    radial-gradient(ellipse at 74% 71%, rgba(221,57,109,.33), transparent 42%),
+    conic-gradient(from 100deg at 50% 50%, transparent, rgba(253,219,160,.12), transparent 40%, rgba(217,39,94,.15), transparent);
+  filter: blur(26px);
+  transform-origin: center center;
+  animation: ba-aurora-breathe 4.15s ease-in-out both;
+}
+.ba-splash-grid {
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  opacity: 0;
+  background-image: radial-gradient(rgba(255,240,211,.55) .85px, transparent .85px);
+  background-size: 27px 27px;
+  transform: perspective(650px) rotateX(55deg) translateY(12%) scale(1.35);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 52%, #000, transparent 72%);
+  mask-image: radial-gradient(ellipse at 50% 52%, #000, transparent 72%);
+  animation: ba-grid-awaken 3.6s ease-in-out .1s both;
+}
+.ba-splash-stars { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.ba-splash-stars span {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: var(--ba-gold);
+  box-shadow: 0 0 9px rgba(255,212,142,.7);
+  opacity: 0;
+  animation: ba-star-float var(--dur) ease-in-out var(--delay) both;
+}
+.ba-splash-beam {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  top: 50%;
+  height: 2px;
+  z-index: 2;
+  transform: translateY(-38vh) scaleX(.2);
+  background: linear-gradient(90deg, transparent, rgba(255,242,208,.95), transparent);
+  box-shadow: 0 0 26px 5px rgba(253,193,125,.4), 0 0 70px rgba(255,224,166,.22);
+  opacity: 0;
+  animation: ba-signal-scan 1.38s cubic-bezier(.26,.8,.26,1) .2s both;
+}
+.ba-splash-rings {
+  position: absolute;
+  z-index: 2;
+  width: min(90vmin, 760px);
+  height: min(90vmin, 760px);
+  display: grid;
+  place-items: center;
+}
+.ba-ring {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(253,222,162,.56);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 20px rgba(245,190,130,.14), inset 0 0 28px rgba(245,190,130,.06);
+}
+.ba-ring-one { animation: ba-ring-bloom 2s ease-out .22s both; }
+.ba-ring-two { inset: 13%; border-color: rgba(255,235,193,.35); animation: ba-ring-bloom 2.1s ease-out .52s both; }
+.ba-ring-three { inset: 27%; border-color: rgba(255,235,193,.2); animation: ba-ring-bloom 1.7s ease-out .8s both; }
+.ba-splash-mark {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: min(93vw, 1000px);
+  height: min(84vh, 930px);
+  transform-origin: center center;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  animation: ba-logo-hero 4.15s cubic-bezier(.2,.7,.25,1) both;
+}
+.ba-splash-mark-glow {
+  position: absolute;
+  inset: 13% 18%;
+  background: radial-gradient(ellipse, rgba(255,219,153,.36), rgba(255,205,150,.11) 39%, transparent 72%);
+  filter: blur(23px);
+  border-radius: 50%;
+  transform: scale(.65);
+  animation: ba-mark-light 3.1s ease-in-out .6s both;
+}
+.ba-splash-logo {
+  display: block;
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  max-height: 84vh;
+  object-fit: contain;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  filter: drop-shadow(0 16px 44px rgba(27,2,12,.27));
+  animation: ba-logo-breathe 2.3s ease-in-out 1.35s both;
+}
+.ba-splash-sheen {
+  position: absolute;
+  z-index: 3;
+  left: -40%;
+  top: -25%;
+  width: 35%;
+  height: 150%;
+  background: linear-gradient(90deg, transparent, rgba(255,240,205,.17) 35%, rgba(255,255,255,.27) 51%, transparent);
+  filter: blur(17px);
+  mix-blend-mode: screen;
+  transform: rotate(20deg) translateX(-170%);
+  opacity: 0;
+  animation: ba-sheen-sweep 1.6s ease-in-out 1.25s both;
+}
+.ba-splash-wave {
+  position: absolute;
+  z-index: 3;
+  width: min(75vmin, 660px);
+  height: min(75vmin, 660px);
+  border: 2px solid rgba(255,228,166,.58);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 45px rgba(255,198,138,.3);
+}
+.ba-wave-one { animation: ba-guardian-wave 1.7s ease-out 2.05s both; }
+.ba-wave-two { animation: ba-guardian-wave 1.5s ease-out 2.43s both; }
+.ba-splash-last-light {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,242,219,.38), rgba(252,226,191,.11) 26%, transparent 66%);
+  opacity: 0;
+  animation: ba-last-flare 1.1s ease-in-out 3.15s both;
+}
+@keyframes ba-scene-depart {
+  0%, 80% { opacity: 1; visibility: visible; }
+  93% { opacity: .78; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+@keyframes ba-aurora-breathe {
+  0% { transform: scale(.9) rotate(-5deg); opacity: .42; }
+  50% { transform: scale(1.1) rotate(9deg); opacity: 1; }
+  100% { transform: scale(1.32) rotate(17deg); opacity: .55; }
+}
+@keyframes ba-grid-awaken {
+  0% { opacity: 0; transform: perspective(650px) rotateX(55deg) translateY(18%) scale(1.4); }
+  32% { opacity: .14; }
+  70% { opacity: .22; }
+  100% { opacity: 0; transform: perspective(650px) rotateX(55deg) translateY(-6%) scale(1.08); }
+}
+@keyframes ba-signal-scan {
+  0% { opacity: 0; transform: translateY(-38vh) scaleX(.2); }
+  20% { opacity: .9; }
+  70% { opacity: .8; }
+  100% { opacity: 0; transform: translateY(37vh) scaleX(1.05); }
+}
+@keyframes ba-ring-bloom {
+  0% { opacity: 0; transform: scale(.18) rotate(-25deg); }
+  35% { opacity: .8; }
+  75% { opacity: .3; }
+  100% { opacity: 0; transform: scale(1.7) rotate(20deg); }
+}
+@keyframes ba-logo-hero {
+  0%, 11% { opacity: 0; transform: translateY(65px) scale(.35) rotate(-3deg); filter: blur(17px); }
+  31% { opacity: 1; transform: translateY(0) scale(1.09) rotate(0); filter: blur(0); }
+  53% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  75% { opacity: 1; transform: translateY(-5px) scale(1.075); filter: blur(0); }
+  84% { opacity: 1; transform: scale(1.02); filter: blur(0); }
+  100% { opacity: 0; transform: translateY(-3vh) scale(1.58); filter: blur(8px); }
+}
+@keyframes ba-logo-breathe {
+  0% { transform: scale(.975); }
+  46% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+@keyframes ba-mark-light {
+  0% { opacity: 0; transform: scale(.65); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: .15; transform: scale(1.3); }
+}
+@keyframes ba-sheen-sweep {
+  0%, 12% { opacity: 0; transform: rotate(20deg) translateX(-170%); }
+  30% { opacity: .85; }
+  78% { opacity: .7; }
+  100% { opacity: 0; transform: rotate(20deg) translateX(480%); }
+}
+@keyframes ba-guardian-wave {
+  0% { opacity: 0; transform: scale(.38); }
+  16% { opacity: .75; }
+  100% { opacity: 0; transform: scale(2.45); }
+}
+@keyframes ba-star-float {
+  0% { opacity: 0; transform: translate3d(0, 18px, 0) scale(.2); }
+  28% { opacity: .9; }
+  60% { opacity: .48; }
+  100% { opacity: 0; transform: translate3d(var(--dx), var(--dy), 0) scale(1.5); }
+}
+@keyframes ba-last-flare {
+  0%, 16% { opacity: 0; }
+  48% { opacity: .6; }
+  100% { opacity: 0; }
+}
+@media (max-width: 600px) {
+  .ba-splash-mark { width: 97vw; height: 82vh; }
+  .ba-splash-logo { max-height: 82vh; }
+  .ba-splash-rings { width: 95vmin; height: 95vmin; }
+  .ba-splash-stars span:nth-child(2n) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ba-splash { display: none !important; }
+}
