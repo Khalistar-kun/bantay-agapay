@@ -44,7 +44,7 @@ export async function GET() {
     // Read-only, zero-row queries; no visitor data, secrets, or counts returned.
     const checks = await Promise.all([
       db.from("destinations").select("id", { head: true }).limit(0),
-      db.from("auth_rate_limits").select("id", { head: true }).limit(0),
+      db.from("auth_rate_limits").select("key_hash", { head: true }).limit(0),
       db.from("authorized_guardians").select("id", { head: true }).limit(0),
     ])
     result.checks = {
