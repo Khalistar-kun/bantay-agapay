@@ -148,13 +148,13 @@ test('SQL schema prevents anonymous reads of minor records and handles gate entr
  }
  assert.match(sql,/REVOKE ALL ON TABLE public\.students,[\s\S]* FROM anon,authenticated;/)
  assert.match(sql,/SECURITY DEFINER SET search_path = ''/)
- assert.match(sql,/REVOKE EXECUTE ON FUNCTION public\.admit_pre_registration\(uuid,uuid\) FROM PUBLIC,anon,authenticated;/)
- assert.match(sql,/REVOKE EXECUTE ON FUNCTION public\.checkout_pre_registration\(uuid,uuid\) FROM PUBLIC,anon,authenticated;/)
+ assert.match(sql,/REVOKE EXECUTE ON FUNCTION public\.admit_pre_registration\(uuid,\s*uuid\)\s+FROM PUBLIC,\s*anon,\s*authenticated;/)
+ assert.match(sql,/REVOKE EXECUTE ON FUNCTION public\.checkout_pre_registration\(uuid,\s*uuid\)\s+FROM PUBLIC,\s*anon,\s*authenticated;/)
  assert.match(sql,/FOR UPDATE/)
  assert.match(sql,/photo_review_status <> 'PASSED'/)
  assert.match(sql,/pr.biometric_status <> 'MATCH'/)
  assert.match(sql,/guardian_details_status <> 'MATCH'/)
- assert.match(sql,/checked_out_by=p_staff_id/)
+ assert.match(sql,/checked_out_by\s*=\s*p_staff_id/)
 })
 test('offline QR presentation never counts as approved campus entry',()=>{
  const prereg=source('app/api/pre-register/route.ts')

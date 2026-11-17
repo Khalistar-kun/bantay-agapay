@@ -47,6 +47,6 @@ test('different sources produce different anonymous rate-limit keys',async()=>{
 })
 test('rate-limit RPC is not callable directly by anonymous Supabase users',()=>{
  const sql=fs.readFileSync(path.join(__dirname,'../supabase/migrations/10_client_guardian_preregistration.sql'),'utf8')
- assert.match(sql,/REVOKE EXECUTE ON FUNCTION public\.consume_rate_limit\(varchar,integer,integer\) FROM PUBLIC,anon,authenticated;/)
- assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.consume_rate_limit\(varchar,integer,integer\) TO service_role;/)
+ assert.match(sql,/REVOKE EXECUTE ON FUNCTION public\.consume_rate_limit\(varchar,\s*integer,\s*integer\)\s+FROM PUBLIC,\s*anon,\s*authenticated;/)
+ assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.consume_rate_limit\(varchar,\s*integer,\s*integer\)\s+TO service_role;/)
 })

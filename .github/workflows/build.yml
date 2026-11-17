@@ -21,6 +21,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Validate PostgreSQL migration syntax
+        run: |
+          python -m pip install --disable-pip-version-check 'pglast>=6,<8'
+          python scripts/check_sql_migrations.py
       - run: node --test tests/*.test.cjs
       - run: npm run type-check
       - run: npm run build
