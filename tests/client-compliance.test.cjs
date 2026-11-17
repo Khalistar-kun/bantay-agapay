@@ -15,7 +15,8 @@ function moduleAt(file,stubs={}){
  const env={NEXT_PUBLIC_SUPABASE_URL:'https://fake.supabase.test',SUPABASE_SERVICE_ROLE_KEY:'fake-key'}
  vm.runInNewContext(js,{module:mod,exports:mod.exports,require:id=>stubs[id]||(id==='@/lib/biometrics/face-comparator'
   ?{compareEnrolledFaces:async()=>({status:'ERROR',confidence:null,modelVersion:null})}
-  :id==='@/lib/server/rate-limit'?{consumeRateLimit:async()=>true}:require(id)),
+  :id==='@/lib/server/rate-limit'?{consumeRateLimit:async()=>true}
+  :id==='@/lib/server/sms-gateway'?{smsGatewayConfigured:()=>true}:require(id)),
    process:{env},Number,JSON,Date,Buffer,URL,console,Math,Intl},
    {filename:file})
  return mod.exports
