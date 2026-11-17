@@ -1,7 +1,7 @@
 name: Build app
 on:
   push:
-    branches: [main]
+    branches: [main, feature/client-compliance-integration-20261117]
   pull_request:
   workflow_dispatch:
 permissions:
