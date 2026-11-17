@@ -23,6 +23,7 @@ export default function VisitStatusPage() {
   const [visitStatus, setVisitStatus] = useState<VisitStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [shareLocation,setShareLocation]=useState(false)
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export default function VisitStatusPage() {
 
         const result = rows[0]
 
+        setError(null)
         setVisitStatus({
           status: result.status as VisitStatus["status"],
           visitor_name: result.visitor_name || "Unknown",
@@ -68,7 +70,7 @@ export default function VisitStatusPage() {
 
     if (token) {
       // Poll for updates
-      const interval = setInterval(fetchStatus, 2000)
+      const interval = setInterval(()=>{if(!document.hidden)void fetchStatus()},10000)
       fetchStatus()
 
       return () => clearInterval(interval)
@@ -83,10 +85,10 @@ export default function VisitStatusPage() {
     }
   }, [visitStatus?.status, token])
 
-  // While the visitor is inside and this page stays open, periodically push
-  // their current location so security can see where they are on campus.
+  // Precise coordinates are sensitive. Do not share automatically:
+  // the visitor must explicitly opt in during an active, approved visit.
   useEffect(() => {
-    if (visitStatus?.status !== "INSIDE" || !navigator.geolocation) return
+    if (visitStatus?.status !== "INSIDE" || !shareLocation || !navigator.geolocation) return
 
     const pushLocation = () => {
       navigator.geolocation.getCurrentPosition(
@@ -113,7 +115,7 @@ export default function VisitStatusPage() {
     const interval = setInterval(pushLocation, 20000)
 
     return () => clearInterval(interval)
-  }, [visitStatus?.status, token])
+  }, [visitStatus?.status, token,shareLocation])
 
   if (loading) {
     return (
@@ -147,7 +149,7 @@ export default function VisitStatusPage() {
                 <span className="text-2xl">⏳</span>
               </div>
               <h1 className="text-2xl font-bold text-gray-900">Awaiting Approval</h1>
-              <p className="text-gray-600 mt-2">Reference: {refNumber}</p>
+              <p className="text-gray-600 mt-2">Reference: {refNumber||visitStatus.reference_number}</p>
             </div>
 
             <div className="space-y-4 bg-gray-50 p-4 rounded-lg mb-6">
@@ -174,7 +176,7 @@ export default function VisitStatusPage() {
                 <span className="text-2xl">✓</span>
               </div>
               <h1 className="text-2xl font-bold text-green-600">Entry Approved</h1>
-              <p className="text-gray-600 mt-2">Reference: {refNumber}</p>
+              <p className="text-gray-600 mt-2">Reference: {refNumber||visitStatus.reference_number}</p>
             </div>
 
             <div className="space-y-4 bg-green-50 p-4 rounded-lg mb-6">
@@ -196,9 +198,21 @@ export default function VisitStatusPage() {
               You may now enter AFGBMTS. Please proceed to your destination.
             </p>
 
-            <p className="text-center text-gray-500 text-xs mb-6">
-              📍 While you're on campus, keep this page open so security can see your location.
-            </p>
+            <section className="mb-6 rounded-xl border border-rose-200 bg-[#fff6f8] p-4">
+              <h2 className="font-bold text-[#82172a]">Optional location sharing</h2>
+              <p className="mt-1 text-xs text-gray-600">
+                Sharing your precise location with school security is optional.
+                It works only while this page is open and your visit is active.
+                You can stop at any time. It does not affect QR entry or exit.
+              </p>
+              <button type="button" onClick={()=>setShareLocation(value=>!value)}
+                className="mt-3 w-full rounded-xl bg-[#82172a] px-4 py-3 text-sm font-bold text-white">
+                {shareLocation?"Stop sharing my location":"Share my location with security"}
+              </button>
+              <p className="mt-2 text-xs text-gray-500">{shareLocation?
+                "Location sharing is enabled only while this page remains open.":
+                "Location sharing is off. Your current coordinates are not being sent by this page."}</p>
+            </section>
 
             <a
               href={`/visit/directions/${token}`}
@@ -223,7 +237,7 @@ export default function VisitStatusPage() {
                 <span className="text-2xl">👋</span>
               </div>
               <h1 className="text-2xl font-bold text-gray-700">Checked Out</h1>
-              <p className="text-gray-600 mt-2">Reference: {refNumber}</p>
+              <p className="text-gray-600 mt-2">Reference: {refNumber||visitStatus.reference_number}</p>
             </div>
 
             <p className="text-center text-gray-600 text-sm mb-4">
@@ -246,7 +260,7 @@ export default function VisitStatusPage() {
                 <span className="text-2xl">✗</span>
               </div>
               <h1 className="text-2xl font-bold text-red-600">Entry Not Approved</h1>
-              <p className="text-gray-600 mt-2">Reference: {refNumber}</p>
+              <p className="text-gray-600 mt-2">Reference: {refNumber||visitStatus.reference_number}</p>
             </div>
 
             <div className="space-y-4 bg-red-50 p-4 rounded-lg mb-6">
