@@ -65,6 +65,9 @@ CREATE TABLE IF NOT EXISTS public.pre_registrations (
     CHECK (guardian_details_status IN ('NOT_APPLICABLE','MATCH','MISMATCH','UNVERIFIED')),
   photo_review_status varchar(32) NOT NULL DEFAULT 'PENDING'
     CHECK (photo_review_status IN ('PENDING','PASSED','FAILED')),
+  biometric_status varchar(28) NOT NULL DEFAULT 'NOT_REQUIRED'
+    CHECK (biometric_status IN ('NOT_REQUIRED','PENDING','MATCH','NO_MATCH','ERROR')),
+  biometric_confidence numeric,
   status varchar(28) NOT NULL DEFAULT 'PRE_REGISTERED'
     CHECK (status IN ('PRE_REGISTERED','NEEDS_REVIEW','ADMITTED','DENIED','EXITED','EXPIRED')),
   privacy_acknowledged_at timestamptz NOT NULL,
@@ -156,7 +159,8 @@ BEGIN
     RAISE EXCEPTION 'Photo review must pass before admission';
   END IF;
   IF pr.purpose IN ('Child Emergency','Visit Student') THEN
-    IF pr.guardian_details_status <> 'MATCH' OR pr.guardian_id IS NULL OR pr.student_id IS NULL
+    IF pr.guardian_details_status <> 'MATCH' OR pr.biometric_status <> 'MATCH'
+      OR pr.guardian_id IS NULL OR pr.student_id IS NULL
       OR NOT EXISTS(
         SELECT 1 FROM public.authorized_guardians g
         JOIN public.student_guardians sg ON sg.guardian_id=g.id

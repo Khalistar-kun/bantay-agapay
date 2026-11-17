@@ -96,6 +96,7 @@ export async function POST(req:NextRequest){
       guardian_birth_date:birthDate,guardian_address:address,student_full_name:studentName,
       student_grade:grade,student_section:section,guardian_id:guardianId,student_id:studentId,
       guardian_details_status:detailsStatus,status,photo_review_status:'PENDING',
+      biometric_status:guardianVisit?'PENDING':'NOT_REQUIRED',
       privacy_acknowledged_at:new Date().toISOString()
     })
     if(saveError){

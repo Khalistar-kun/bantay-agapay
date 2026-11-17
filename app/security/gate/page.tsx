@@ -9,7 +9,7 @@ type Registration={
  studentName:string|null;studentGrade:string|null;studentSection:string|null;
  guardianBirthday:string|null;guardianAddress:string|null;destination:string;building:string;
  submittedAt:string;expiresAt:string;status:string;photoReviewStatus:string;
- guardianDetailsStatus:string;photoUrl:string|null;referencePhotoUrl:string|null;visitId:string|null
+ guardianDetailsStatus:string;biometricStatus:string;biometricConfidence:number|null;photoUrl:string|null;referencePhotoUrl:string|null;visitId:string|null
 }
 type Pending={
  id:string;reference_number:string;full_name:string;visitor_type:string;purpose:string;
@@ -92,7 +92,7 @@ export default function GateOperations(){
    }catch(e){setError(e instanceof Error?e.message:"Could not find QR")}
    finally{setBusy(false)}
  }
- async function action(type:"review-photo"|"approve"|"deny"|"checkout",decision?:"PASSED"|"FAILED"){
+ async function action(type:"compare-face"|"review-photo"|"approve"|"deny"|"checkout",decision?:"PASSED"|"FAILED"){
    setBusy(true);setError("");setNotice("")
    try{
      const res=await fetch("/api/security/gate",{
@@ -101,7 +101,7 @@ export default function GateOperations(){
      })
      const data=await res.json()
      if(!res.ok)throw Error(data.error||"Action rejected")
-     setNotice(type==="review-photo"?"Photo review decision recorded.":type==="approve"?"Visitor checked in. Entry time recorded.":type==="checkout"?"Visitor checked out. Exit time recorded.":"Registration denied and recorded.")
+     setNotice(type==="compare-face"?data.message||"Face comparison completed.":type==="review-photo"?"Photo review decision recorded.":type==="approve"?"Visitor checked in. Entry time recorded.":type==="checkout"?"Visitor checked out. Exit time recorded.":"Registration denied and recorded.")
      await lookup(token)
      await loadPending()
    }catch(e){setError(e instanceof Error?e.message:"Could not complete gate action")}
@@ -111,7 +111,7 @@ export default function GateOperations(){
    (registration.purpose==="Child Emergency"||registration.purpose==="Visit Student")
  const invalidGuardian=isGuardian&&registration?.guardianDetailsStatus!=="MATCH"
  const eligible=registration?.status==="PRE_REGISTERED"&&
-   registration.photoReviewStatus==="PASSED"&&!invalidGuardian&&Date.now()<new Date(registration.expiresAt).getTime()
+   registration.photoReviewStatus==="PASSED"&&!invalidGuardian&&(!isGuardian||registration.biometricStatus==="MATCH")&&Date.now()<new Date(registration.expiresAt).getTime()
  return <main className="min-h-screen min-w-0 overflow-x-clip bg-[#faf6f8] px-3 py-5 text-[#291722] sm:px-6">
    <div className="mx-auto max-w-6xl space-y-5">
      <header className="rounded-2xl bg-gradient-to-br from-[#ad2945] to-[#471320] p-5 text-white sm:p-8">
@@ -166,7 +166,8 @@ export default function GateOperations(){
                ["Student",registration.studentName||"—"],
                ["Grade & Section",registration.studentGrade&&registration.studentSection?registration.studentGrade+" · "+registration.studentSection:"—"],
                ["Guardian Details",isGuardian?registration.guardianDetailsStatus:"Not applicable"],
-               ["Photo Review",registration.photoReviewStatus]
+               ["Photo Review",registration.photoReviewStatus],
+               ["Biometric Identity Match",isGuardian?registration.biometricStatus:"Not required"]
              ].map(([label,value])=><div key={label} className="min-w-0"><dt className="text-xs font-bold text-gray-500">{label}</dt><dd className="break-words font-semibold">{value}</dd></div>)}
            </dl>
            {invalidGuardian&&<div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-bold text-red-900">
@@ -174,7 +175,18 @@ export default function GateOperations(){
            </div>}
            {(registration.status==="PRE_REGISTERED"||registration.status==="NEEDS_REVIEW")&&<div className="space-y-3 border-t pt-4">
              <h3 className="font-bold">Face Photo & Identity Review</h3>
-             <p className="text-sm text-gray-600">Compare the visitor in front of you with the captured photo. For guardians, also compare the protected enrolled reference. This manual check is not an automated biometric match.</p>
+             <p className="text-sm text-gray-600">Compare the visitor in front of you with the captured photo. For guardians, also compare the protected enrolled reference. The biometric matching service must pass separately before ordinary admission.</p>
+             {isGuardian&&<div className="space-y-3 rounded-xl border border-[#e8c9d3] bg-[#fff7f9] p-4">
+               <strong className="text-sm text-[#82172a]">One-to-One Biometric Verification</strong>
+               <p className="text-xs text-gray-700">This check compares the captured live photo with the school's enrolled reference using an approved service. If the service is unavailable, or the match or liveness check fails, entry remains blocked.</p>
+               <button type="button" disabled={busy||Boolean(invalidGuardian)||!registration.photoUrl||!registration.referencePhotoUrl}
+                 onClick={()=>void action("compare-face")} className={button+" w-full bg-[#82172a] text-white"}>
+                 Run Approved Face Comparison
+               </button>
+               <p className={"text-xs font-bold "+(registration.biometricStatus==="MATCH"?"text-emerald-800":"text-amber-900")}>
+                 Current match status: {registration.biometricStatus||"PENDING"}
+               </p>
+             </div>}
              {isGuardian&&<label className="flex items-start gap-3 rounded-xl bg-[#fff6f8] p-3 text-sm">
                <input className="mt-1 size-4 accent-[#82172a]" type="checkbox" checked={referenceReviewed}
                  onChange={e=>setReferenceReviewed(e.target.checked)}/>
