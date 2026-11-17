@@ -12,7 +12,7 @@ const origin = 'https://bantay-preview.example'
 
 function mockBackend() {
   const db = {
-    visits: [{ id: uuid, visitor_id: uuid2, status: 'PENDING', public_token: tok }],
+    visits: [{ id: uuid, visitor_id: uuid2, pre_registration_id: null, status: 'PENDING', public_token: tok }],
     visitors: [{ id: uuid2, full_name: 'Demo Visitor', contact_number: '09170000000' }],
     destinations: [{ id: uuid2, active: true }],
     system_settings: [{key:'school_latitude',value:'14.737'},{key:'school_longitude',value:'120.9728'},{key:'geofence_radius',value:'500'}],
@@ -25,6 +25,7 @@ function mockBackend() {
     const api = {
       select() { return api },
       eq(field, value) { filters.push([field, value]); return api },
+      is(field,value){filters.push([field,value]);return api},
       update(value) { action = 'update'; payload = value; return api },
       insert(value) { action = 'insert'; payload = value; return api },
       delete() { action = 'delete'; return api },
