@@ -46,11 +46,13 @@ export async function GET() {
       db.from("destinations").select("id", { head: true }).limit(0),
       db.from("auth_rate_limits").select("key_hash", { head: true }).limit(0),
       db.from("authorized_guardians").select("id", { head: true }).limit(0),
+      db.from("visitor_phone_verifications").select("proof_hash", { head: true }).limit(0),
     ])
     result.checks = {
       connectivity: checks[0].error ? "unavailable" : "connected",
       registrationRateLimits: checks[1].error ? "unavailable" : "connected",
       guardianRegistry: checks[2].error ? "unavailable" : "connected",
+      phoneVerificationProofs: checks[3].error ? "unavailable" : "connected",
     }
     result.status = checks.every(x => !x.error) ? "connected" : "unavailable"
     result.database = result.checks.connectivity
