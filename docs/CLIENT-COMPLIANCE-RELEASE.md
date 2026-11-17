@@ -42,6 +42,16 @@ privacy request registers, and safeguarded rejection of legacy security-bypassin
 - Secure returning-visitor identity-based prefill (e.g. school-approved OTP); phone-only lookup has been retired.
 - Isolated Supabase staging database to apply and test migrations 09/10, storage access and transaction RPCs, then rehearse backup/rollback.
 - Approved retention and erasure enforcement. Current retention settings are only policy targets.
-- Rate limits/abuse controls for registration and staff authentication.
+- Rate limiter has been added, but its server secret and database RPC must be configured and verified in staging; a WAF policy is also needed.
 - Real smartphone camera, QR, GPS and actual campus route tests, plus school policy/legal review.
 - Final change freeze, one reviewed merge into main and one production deployment.
+
+
+### School-approved biometric comparison setup
+Comparison is disabled until server-only BA_FACE_COMPARISON_URL (HTTPS), BA_FACE_COMPARISON_SECRET and
+BA_FACE_MIN_CONFIDENCE are configured for an approved service with an independently tested liveness check.
+Without this service or a confident match, guardians cannot be approved by ordinary gate operations.
+
+### Abuse limit setup
+BA_RATE_LIMIT_SECRET must be provisioned as a server-only HMAC key of at least 32 characters.
+The private rate-limit table and service-role-only RPC must be applied in staging and tested.

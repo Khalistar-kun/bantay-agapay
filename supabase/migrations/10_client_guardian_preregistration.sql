@@ -169,6 +169,216 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE public.students,public.faculty_direct
 -- Existing visits and visitor tables must be separately locked down on staging using migration 09.
 -- Do not grant anonymous SELECT on these new tables or on guardian reference storage.
 
+-- Anonymous public operations must be throttled through a server-secret HMAC key.
+-- The table stores only a one-way HMAC, never a full phone or IP address.
+CREATE TABLE IF NOT EXISTS public.auth_rate_limits (
+  key_hash varchar(64) PRIMARY KEY CHECK (key_hash ~ '^[a-f0-9]{64}
+-- This function is not executable by public API roles.
+CREATE OR REPLACE FUNCTION public.admit_pre_registration(p_id uuid,p_staff_id uuid)
+RETURNS TABLE(visit_id uuid,visitor_name text)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $
+DECLARE
+  pr public.pre_registrations%ROWTYPE;
+  v_id uuid;
+  created_visit uuid;
+BEGIN
+  SELECT * INTO pr FROM public.pre_registrations WHERE id=p_id FOR UPDATE;
+  IF NOT FOUND OR pr.status <> 'PRE_REGISTERED' OR pr.expires_at <= now() THEN
+    RAISE EXCEPTION 'Registration unavailable for admission';
+  END IF;
+  IF pr.photo_review_status <> 'PASSED' THEN
+    RAISE EXCEPTION 'Photo review must pass before admission';
+  END IF;
+  IF pr.purpose IN ('Child Emergency','Visit Student') THEN
+    IF pr.guardian_details_status <> 'MATCH' OR pr.biometric_status <> 'MATCH'
+      OR pr.guardian_id IS NULL OR pr.student_id IS NULL
+      OR NOT EXISTS(
+        SELECT 1 FROM public.authorized_guardians g
+        JOIN public.student_guardians sg ON sg.guardian_id=g.id
+        JOIN public.students s ON s.id=sg.student_id
+        WHERE g.id=pr.guardian_id AND s.id=pr.student_id
+          AND g.active AND g.verified_at IS NOT NULL AND sg.active AND s.active
+      ) THEN
+      RAISE EXCEPTION 'Guardian authorization is incomplete';
+    END IF;
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.profiles p WHERE p.id=p_staff_id AND p.active
+    AND p.status='APPROVED' AND p.role IN ('ADMIN','SECURITY')) THEN
+    RAISE EXCEPTION 'Guard account invalid';
+  END IF;
+  INSERT INTO public.visitors(full_name,contact_number,visitor_type,face_reference_path)
+    VALUES(pr.full_name,pr.contact_number,pr.visitor_type,pr.visitor_photo_path)
+    RETURNING id INTO v_id;
+  INSERT INTO public.visits(visitor_id,destination_id,reference_number,purpose,public_token,
+    status,registration_time,approved_at,approved_by,check_in,pre_registration_id)
+    VALUES(v_id,pr.destination_id,pr.reference_number,pr.purpose,pr.public_token,
+      'INSIDE',now(),now(),p_staff_id,now(),pr.id)
+    RETURNING id INTO created_visit;
+  UPDATE public.pre_registrations SET status='ADMITTED',visit_id=created_visit,
+    reviewed_by=p_staff_id,reviewed_at=now() WHERE id=pr.id;
+  INSERT INTO public.audit_logs(user_id,action,entity_type,entity_id,metadata)
+    VALUES(p_staff_id,'GATE_ENTRY_APPROVED','visit',created_visit,
+      jsonb_build_object('pre_registration_id',pr.id,'reference',pr.reference_number));
+  RETURN QUERY SELECT created_visit,pr.full_name::text;
+END;
+$;
+REVOKE EXECUTE ON FUNCTION public.admit_pre_registration(uuid,uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.admit_pre_registration(uuid,uuid) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.checkout_pre_registration(p_id uuid,p_staff_id uuid)
+RETURNS TABLE(visitor_name text)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $
+DECLARE
+  pr public.pre_registrations%ROWTYPE;
+  v public.visits%ROWTYPE;
+BEGIN
+  SELECT * INTO pr FROM public.pre_registrations WHERE id=p_id FOR UPDATE;
+  IF NOT FOUND OR pr.status <> 'ADMITTED' OR pr.visit_id IS NULL THEN
+    RAISE EXCEPTION 'No active visitor entry';
+  END IF;
+  SELECT * INTO v FROM public.visits WHERE id=pr.visit_id FOR UPDATE;
+  IF NOT FOUND OR v.status <> 'INSIDE' THEN
+    RAISE EXCEPTION 'Visit already closed';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.profiles p WHERE p.id=p_staff_id AND p.active
+    AND p.status='APPROVED' AND p.role IN ('ADMIN','SECURITY')) THEN
+    RAISE EXCEPTION 'Guard account invalid';
+  END IF;
+  UPDATE public.visits SET status='EXITED',check_out=now(),checked_out_by=p_staff_id WHERE id=v.id;
+  UPDATE public.pre_registrations SET status='EXITED' WHERE id=pr.id;
+  INSERT INTO public.audit_logs(user_id,action,entity_type,entity_id,metadata)
+    VALUES(p_staff_id,'GATE_EXIT_RECORDED','visit',v.id,jsonb_build_object('pre_registration_id',pr.id));
+  RETURN QUERY SELECT pr.full_name::text;
+END;
+$;
+REVOKE EXECUTE ON FUNCTION public.checkout_pre_registration(uuid,uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.checkout_pre_registration(uuid,uuid) TO service_role;
+
+COMMIT;
+),
+  attempts integer NOT NULL DEFAULT 0,
+  window_ends timestamptz NOT NULL
+);
+ALTER TABLE public.auth_rate_limits ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.auth_rate_limits FROM anon,authenticated;
+GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE public.auth_rate_limits TO service_role;
+
+CREATE OR REPLACE FUNCTION public.consume_rate_limit(
+  p_key_hash varchar,
+  p_limit integer,
+  p_window_seconds integer
+) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
+AS $
+DECLARE
+  attempt_count integer;
+BEGIN
+  IF p_key_hash !~ '^[a-f0-9]{64}
+-- This function is not executable by public API roles.
+CREATE OR REPLACE FUNCTION public.admit_pre_registration(p_id uuid,p_staff_id uuid)
+RETURNS TABLE(visit_id uuid,visitor_name text)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $
+DECLARE
+  pr public.pre_registrations%ROWTYPE;
+  v_id uuid;
+  created_visit uuid;
+BEGIN
+  SELECT * INTO pr FROM public.pre_registrations WHERE id=p_id FOR UPDATE;
+  IF NOT FOUND OR pr.status <> 'PRE_REGISTERED' OR pr.expires_at <= now() THEN
+    RAISE EXCEPTION 'Registration unavailable for admission';
+  END IF;
+  IF pr.photo_review_status <> 'PASSED' THEN
+    RAISE EXCEPTION 'Photo review must pass before admission';
+  END IF;
+  IF pr.purpose IN ('Child Emergency','Visit Student') THEN
+    IF pr.guardian_details_status <> 'MATCH' OR pr.biometric_status <> 'MATCH'
+      OR pr.guardian_id IS NULL OR pr.student_id IS NULL
+      OR NOT EXISTS(
+        SELECT 1 FROM public.authorized_guardians g
+        JOIN public.student_guardians sg ON sg.guardian_id=g.id
+        JOIN public.students s ON s.id=sg.student_id
+        WHERE g.id=pr.guardian_id AND s.id=pr.student_id
+          AND g.active AND g.verified_at IS NOT NULL AND sg.active AND s.active
+      ) THEN
+      RAISE EXCEPTION 'Guardian authorization is incomplete';
+    END IF;
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.profiles p WHERE p.id=p_staff_id AND p.active
+    AND p.status='APPROVED' AND p.role IN ('ADMIN','SECURITY')) THEN
+    RAISE EXCEPTION 'Guard account invalid';
+  END IF;
+  INSERT INTO public.visitors(full_name,contact_number,visitor_type,face_reference_path)
+    VALUES(pr.full_name,pr.contact_number,pr.visitor_type,pr.visitor_photo_path)
+    RETURNING id INTO v_id;
+  INSERT INTO public.visits(visitor_id,destination_id,reference_number,purpose,public_token,
+    status,registration_time,approved_at,approved_by,check_in,pre_registration_id)
+    VALUES(v_id,pr.destination_id,pr.reference_number,pr.purpose,pr.public_token,
+      'INSIDE',now(),now(),p_staff_id,now(),pr.id)
+    RETURNING id INTO created_visit;
+  UPDATE public.pre_registrations SET status='ADMITTED',visit_id=created_visit,
+    reviewed_by=p_staff_id,reviewed_at=now() WHERE id=pr.id;
+  INSERT INTO public.audit_logs(user_id,action,entity_type,entity_id,metadata)
+    VALUES(p_staff_id,'GATE_ENTRY_APPROVED','visit',created_visit,
+      jsonb_build_object('pre_registration_id',pr.id,'reference',pr.reference_number));
+  RETURN QUERY SELECT created_visit,pr.full_name::text;
+END;
+$;
+REVOKE EXECUTE ON FUNCTION public.admit_pre_registration(uuid,uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.admit_pre_registration(uuid,uuid) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.checkout_pre_registration(p_id uuid,p_staff_id uuid)
+RETURNS TABLE(visitor_name text)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $
+DECLARE
+  pr public.pre_registrations%ROWTYPE;
+  v public.visits%ROWTYPE;
+BEGIN
+  SELECT * INTO pr FROM public.pre_registrations WHERE id=p_id FOR UPDATE;
+  IF NOT FOUND OR pr.status <> 'ADMITTED' OR pr.visit_id IS NULL THEN
+    RAISE EXCEPTION 'No active visitor entry';
+  END IF;
+  SELECT * INTO v FROM public.visits WHERE id=pr.visit_id FOR UPDATE;
+  IF NOT FOUND OR v.status <> 'INSIDE' THEN
+    RAISE EXCEPTION 'Visit already closed';
+  END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.profiles p WHERE p.id=p_staff_id AND p.active
+    AND p.status='APPROVED' AND p.role IN ('ADMIN','SECURITY')) THEN
+    RAISE EXCEPTION 'Guard account invalid';
+  END IF;
+  UPDATE public.visits SET status='EXITED',check_out=now(),checked_out_by=p_staff_id WHERE id=v.id;
+  UPDATE public.pre_registrations SET status='EXITED' WHERE id=pr.id;
+  INSERT INTO public.audit_logs(user_id,action,entity_type,entity_id,metadata)
+    VALUES(p_staff_id,'GATE_EXIT_RECORDED','visit',v.id,jsonb_build_object('pre_registration_id',pr.id));
+  RETURN QUERY SELECT pr.full_name::text;
+END;
+$;
+REVOKE EXECUTE ON FUNCTION public.checkout_pre_registration(uuid,uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.checkout_pre_registration(uuid,uuid) TO service_role;
+
+COMMIT;
+ OR p_limit NOT BETWEEN 1 AND 500
+    OR p_window_seconds NOT BETWEEN 60 AND 86400 THEN
+    RAISE EXCEPTION 'Invalid rate limit parameters';
+  END IF;
+  INSERT INTO public.auth_rate_limits(key_hash,attempts,window_ends)
+  VALUES(p_key_hash,1,now()+make_interval(secs=>p_window_seconds))
+  ON CONFLICT (key_hash) DO UPDATE
+    SET attempts=CASE WHEN public.auth_rate_limits.window_ends<=now()
+      THEN 1 ELSE public.auth_rate_limits.attempts+1 END,
+    window_ends=CASE WHEN public.auth_rate_limits.window_ends<=now()
+      THEN now()+make_interval(secs=>p_window_seconds)
+      ELSE public.auth_rate_limits.window_ends END
+  RETURNING attempts INTO attempt_count;
+  RETURN attempt_count <= p_limit;
+END;
+$;
+REVOKE EXECUTE ON FUNCTION public.consume_rate_limit(varchar,integer,integer) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.consume_rate_limit(varchar,integer,integer) TO service_role;
+
 -- Atomic admission: called ONLY by a server route authenticated as school staff.
 -- This function is not executable by public API roles.
 CREATE OR REPLACE FUNCTION public.admit_pre_registration(p_id uuid,p_staff_id uuid)

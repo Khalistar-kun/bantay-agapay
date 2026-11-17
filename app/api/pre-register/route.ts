@@ -2,6 +2,7 @@ import { NextRequest,NextResponse } from 'next/server'
 import { randomBytes,randomUUID } from 'crypto'
 import { schoolDb,denyCrossOrigin,noStore,consentNotice,safeText,qrTokenPattern,resolveAuthorizedGuardian } from '@/lib/server/client-compliance-db'
 import { PHONE,PURPOSES,VISITOR_TYPES,requiresGuardianCheck,validDate,parsePhoto,UUID } from '@/lib/client-compliance'
+import { consumeRateLimit } from '@/lib/server/rate-limit'
 
 export const dynamic='force-dynamic'
 
@@ -60,6 +61,14 @@ export async function POST(req:NextRequest){
       section=safeText(body.studentSection,1,100)
       if(!validDate(birthDate)||!address||!studentName||!grade||!section)
         return NextResponse.json({error:'Guardian and student details are required'},{status:400})
+    }
+    try{
+      const allowed=await consumeRateLimit(req,'prereg-ip','new',12,3600)
+      if(!allowed)return NextResponse.json({error:'Registration rate limit reached. Ask school security for assistance.'},{status:429})
+      const phoneAllowed=await consumeRateLimit(req,'prereg-phone',contactNumber,5,86400)
+      if(!phoneAllowed)return NextResponse.json({error:'Daily registration limit reached. Contact school security.'},{status:429})
+    }catch{
+      return NextResponse.json({error:'Registration safety checks are temporarily unavailable. Contact the school.'},{status:503})
     }
     const db=schoolDb()
     const {data:destination,error:dError}=await db.from('destinations')

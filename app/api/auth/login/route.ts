@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import crypto from "crypto"
+import { consumeRateLimit } from "@/lib/server/rate-limit"
 import { normalizePhone } from "@/lib/utils/phone"
 
 const supabase = createClient(
@@ -21,6 +22,8 @@ export async function POST(request: NextRequest) {
 
     // Full names are permitted per school requirements, but duplicate names
     // must never silently select another person's account.
+    const allowed=await consumeRateLimit(request,'staff-login',identifier.toLowerCase(),12,900)
+    if(!allowed)return NextResponse.json({error:'Too many login attempts. Contact your school administrator.'},{status:429})
     const phoneLogin = /^\+?\d[\d\s-]{9,20}$/.test(identifier)
     const lookup = supabase.from("profiles")
       .select("id, full_name, role, active, status, password_hash")
