@@ -14,7 +14,7 @@ function context({found=true,configured=true,rateAllowed=true}={}){
  const rows={
   visitors:found?[{id:'v1',full_name:'Sample Visitor',visitor_type:'Guest',contact_number:phone,
    created_at:'2026-11-17T00:00:00Z'}]:[],
-  returning_otp_challenges:[]
+  returning_otp_challenges:[],visitor_phone_verifications:[]
  }
  const sent=[]
  let called=0
@@ -62,7 +62,8 @@ function context({found=true,configured=true,rateAllowed=true}={}){
  }
  const module={exports:{}}
  vm.runInNewContext(js,{module,exports:module.exports,require:id=>stubs[id]||require(id),
-  process:{env:{BA_OTP_HMAC_SECRET:'secret-'.repeat(8)}},Date,Buffer,JSON,URL,crypto,console},
+  process:{env:{BA_OTP_HMAC_SECRET:'secret-'.repeat(8),
+    BA_RATE_LIMIT_SECRET:'rate-limit-test-key-'.repeat(3)}},Date,Buffer,JSON,URL,crypto,console},
   {filename:'app/api/returning/otp/route.ts'})
  return{rows,sent,
   request:body=>({headers:{get:key=>key==='origin'?origin:null},nextUrl:{origin},
@@ -91,6 +92,10 @@ test('valid OTP returns only minimal visitor prefill and cannot be reused',async
  const verified=await c.post(c.request({action:'verify',contactNumber:phone,code:c.sent[0].code}))
  assert.equal(verified.status,200)
  assert.equal(verified.body.verified,true)
+ assert.match(verified.body.verificationToken,/^[a-f0-9]{64}$/)
+ assert.equal(c.rows.visitor_phone_verifications.length,1)
+ assert.match(c.rows.visitor_phone_verifications[0].proof_hash,/^[a-f0-9]{64}$/)
+ assert.doesNotMatch(JSON.stringify(c.rows.visitor_phone_verifications),new RegExp(verified.body.verificationToken))
  assert.equal(verified.body.profile.fullName,'Sample Visitor')
  assert.equal(verified.body.profile.visitorType,'Guest')
  assert.equal(verified.body.profile.studentName,undefined)
@@ -115,8 +120,9 @@ test('unknown phone number receives generic response with no identity lookup det
  const c=context({found:false})
  const r=await c.post(c.request({action:'request',contactNumber:phone}))
  assert.equal(r.status,200)
- assert.match(r.body.message,/If this number/)
- assert.equal(c.sent.length,0)
+ assert.match(r.body.message,/verification SMS was queued/i)
+ assert.equal(c.sent.length,1)
+ assert.equal(c.rows.returning_otp_challenges.length,1)
 })
 test('SMS gateway unavailable returns an error without creating an OTP or claiming delivery',async()=>{
  const c=context({configured:false})
@@ -133,9 +139,10 @@ test('rate limiting denies OTP spam before creating records',async()=>{
 test('OTP does not skip the separate camera, student and gate authorization workflow',()=>{
  const page=fs.readFileSync(path.join(__dirname,'../app/pre-register/page.tsx'),'utf8')
  const endpoint=source
- assert.match(page,/Verify Code & Prefill Information/)
+ assert.match(page,/Verify SMS Code/)
+ assert.match(page,/Required · Verify Your Mobile Number/)
  assert.match(page,/<FaceDetection key=/)
- assert.match(endpoint,/A fresh face scan and security gate verification/)
+ assert.match(endpoint,/school security still verifies identity at the gate/)
  assert.doesNotMatch(endpoint,/face_reference_path|guardian_address|student_full_name/)
 })
 test('guardian SMS challenge data is private and anonymous clients have no table grants',()=>{
@@ -143,3 +150,15 @@ test('guardian SMS challenge data is private and anonymous clients have no table
  assert.match(sql,/ALTER TABLE public\.returning_otp_challenges ENABLE ROW LEVEL SECURITY/)
  assert.match(sql,/REVOKE ALL ON TABLE public\.returning_otp_challenges FROM anon, authenticated/)
 })
+
+test('first-time visitor can verify OTP without any existing visitor profile',async()=>{
+ const c=context({found:false})
+ const sent=await c.post(c.request({action:'request',contactNumber:phone}))
+ assert.equal(sent.status,200)
+ assert.equal(c.sent.length,1)
+ const verified=await c.post(c.request({action:'verify',contactNumber:phone,code:c.sent[0].code}))
+ assert.equal(verified.status,200)
+ assert.equal(verified.body.verified,true)
+ assert.equal(verified.body.profile,null)
+ assert.match(verified.body.verificationToken,/^[a-f0-9]{64}$/)
+});
