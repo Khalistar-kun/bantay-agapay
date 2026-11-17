@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 
 type State = "connected" | "unavailable" | "not_configured"
-type Health = { status: State; database: State; checks: Record<string, State>; checkedAt: string }
+type StageReadiness={configured:boolean;missing:string[]}
+type Health = {status:State;database:State;checks:Record<string,State>;checkedAt:string;
+  readiness?:{registration:StageReadiness;sms:StageReadiness;guardianFaceComparison:StageReadiness;notice:string}}
 type SmsHealth = { ready: boolean; destination: string | null; notice: string }
 
 const names: Record<string, string> = {
@@ -87,7 +89,7 @@ export default function DatabaseHealthPage() {
   return <main className="min-h-screen bg-[#faf6f8] px-4 py-8 text-[#2b1b26]">
     <div className="mx-auto max-w-3xl space-y-6">
       <div><Link href="/admin" className="text-sm font-semibold text-[#82172a]">← Administrator Dashboard</Link>
-        <h1 className="mt-3 text-2xl font-extrabold">Database Connection Checker</h1>
+        <h1 className="mt-3 text-2xl font-extrabold">School System Diagnostics</h1>
         <p className="mt-2 text-sm text-gray-600">Read-only diagnostics. No visitor records or credentials are displayed.</p>
       </div>
       <section className="rounded-2xl border border-[#eadde1] bg-white p-5 shadow-sm" aria-live="polite">
@@ -109,6 +111,32 @@ export default function DatabaseHealthPage() {
               </span>
             </div>)}
           </div>
+          {data.readiness&&<section className="mt-6 border-t border-gray-100 pt-5" aria-label="Registration and security readiness">
+            <h3 className="text-base font-bold">Visitor, SMS & Guardian Service Readiness</h3>
+            <p className="mt-1 text-xs text-gray-600">Environment configuration only. These checks do not confirm real SMS delivery or a face match.</p>
+            <div className="mt-3 grid gap-3">
+              {([
+                ["registration","Visitor registration and OTP prerequisites"],
+                ["sms","Free-only Android SMS gateway"],
+                ["guardianFaceComparison","Approved guardian biometric service"]
+              ] as const).map(([key,label])=>{
+                const stage=data.readiness![key]
+                return <div key={key} className="rounded-xl border border-gray-200 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-bold">{label}</span>
+                    <span className={"rounded-full px-3 py-1 text-xs font-bold "+
+                      (stage.configured?"bg-emerald-50 text-emerald-800":"bg-amber-50 text-amber-900")}>
+                      {stage.configured?"Configured · Not live-tested":"Action required"}
+                    </span>
+                  </div>
+                  {!stage.configured&&<p className="mt-2 break-words text-xs text-amber-900">
+                    Missing configuration: {stage.missing.join(", ")}
+                  </p>}
+                </div>
+              })}
+            </div>
+            <p className="mt-3 text-xs text-gray-600">{data.readiness.notice}</p>
+          </section>}
           <p className="mt-4 text-xs text-gray-500">Last checked: {new Date(data.checkedAt).toLocaleString("en-PH", { timeZone: "Asia/Manila" })} (Philippine time)</p>
           {data.status !== "connected" && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
             Verify the Supabase URL and server-only service-role key in the deployment environment, and confirm migrations 09–12 were applied to that database. Do not disable registration safety checks.
