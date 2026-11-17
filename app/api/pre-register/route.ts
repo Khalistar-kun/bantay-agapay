@@ -47,13 +47,6 @@ export async function POST(req:NextRequest){
       return NextResponse.json({error:'Complete all required registration information'},{status:400})
     const detail=purpose==='Other'?safeText(purposeOther,3,180):purpose
     if(!detail)return NextResponse.json({error:'Please specify your purpose of visit'},{status:400})
-    // The browser cannot bypass mandatory phone verification.
-    const verificationToken=body.verificationToken
-    if(typeof verificationToken!=='string'||!/^[a-f0-9]{64}$/.test(verificationToken))
-      return NextResponse.json({error:'Verify your mobile number by SMS before registering.'},{status:403,headers:noStore})
-    const otpSecret=process.env.BA_OTP_HMAC_SECRET||''
-    if(!smsGatewayConfigured()||otpSecret.length<32)
-      return NextResponse.json({error:'School SMS verification is unavailable. Contact school security.'},{status:503,headers:noStore})
     const photo=parsePhoto(body.facePhoto)
     if(!photo)return NextResponse.json({error:'A valid face JPEG is required'},{status:400})
     const guardianVisit=requiresGuardianCheck(visitorType,purpose)
@@ -70,6 +63,13 @@ export async function POST(req:NextRequest){
       if(!validDate(birthDate)||!address||!studentName||!grade||!section)
         return NextResponse.json({error:'Guardian and student details are required'},{status:400})
     }
+    // The browser cannot bypass mandatory phone verification.
+    const verificationToken=body.verificationToken
+    if(typeof verificationToken!=='string'||!/^[a-f0-9]{64}$/.test(verificationToken))
+      return NextResponse.json({error:'Verify your mobile number by SMS before registering.'},{status:403,headers:noStore})
+    const otpSecret=process.env.BA_OTP_HMAC_SECRET||''
+    if(!smsGatewayConfigured()||otpSecret.length<32)
+      return NextResponse.json({error:'School SMS verification is unavailable. Contact school security.'},{status:503,headers:noStore})
     try{
       const allowed=await consumeRateLimit(req,'prereg-ip','new',12,3600)
       if(!allowed)return NextResponse.json({error:'Registration rate limit reached. Ask school security for assistance.'},{status:429})
