@@ -10,6 +10,7 @@ const names: Record<string, string> = {
   connectivity: "Supabase database connection",
   registrationRateLimits: "Registration safety checks table",
   guardianRegistry: "Guardian registry table",
+  phoneVerificationProofs: "Mandatory OTP proof storage",
 }
 const badge: Record<State, string> = {
   connected: "bg-emerald-50 text-emerald-800 border-emerald-200",
