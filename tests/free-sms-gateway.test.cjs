@@ -66,3 +66,33 @@ test('paid custom SMS gateway configuration is ignored',async()=>{
  assert.equal(x.calls(),0)
  assert.doesNotMatch(source,/process\.env\.BA_SMS_GATEWAY_URL/)
 })
+
+test('admin test SMS uses only free TextBee to the fixed intended device, never a visitor OTP',async()=>{
+ let sent=null
+ const x=gateway({...freeConfig,TEXTBEE_DEVICE_ID:'fictionalDevice123'},async(url,init)=>{
+   sent={url,payload:JSON.parse(init.body)}
+   return {ok:true,json:async()=>({data:{success:true}})}
+ })
+ assert.equal(await x.gateway.sendSchoolTestSms('09170000000'),true)
+ assert.equal(sent.url,'https://api.textbee.dev/api/v1/gateway/send-sms')
+ assert.deepEqual(sent.payload.recipients,['+639170000000'])
+ assert.equal(sent.payload.deviceId,'fictionalDevice123')
+ assert.match(sent.payload.message,/admin SMS test/)
+ assert.match(sent.payload.message,/NOT a login or visitor OTP/)
+ assert.doesNotMatch(sent.payload.message,/Bantay-Agapay code:/)
+ assert.equal(x.calls(),1)
+})
+test('admin test SMS fails closed with missing device or free SIM flags',async()=>{
+ for(const env of [
+   {...freeConfig,TEXTBEE_DEVICE_ID:''},
+   {...freeConfig,TEXTBEE_DEVICE_ID:'fictionalDevice123',BA_FREE_SMS_ONLY:'false'},
+   {...freeConfig,TEXTBEE_DEVICE_ID:'fictionalDevice123',BA_SMS_CARRIER_INCLUDED:'false'}
+ ]){
+   const x=gateway(env)
+   assert.equal(await x.gateway.sendSchoolTestSms('09170000000'),false)
+   assert.equal(x.calls(),0)
+ }
+ const x=gateway({...freeConfig,TEXTBEE_DEVICE_ID:'fictionalDevice123'})
+ assert.equal(await x.gateway.sendSchoolTestSms('not-a-number'),false)
+ assert.equal(x.calls(),0)
+})

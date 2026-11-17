@@ -13,6 +13,7 @@ type Activity={series:{day:string;registrations:number;entries:number;exits:numb
 type Me={fullName:string|null;hasPhoto:boolean;photoUrl:string|null}
 const zero:Stats={todayVisitors:0,currentlyInside:0,pendingApproval:0,completedToday:0,preRegisteredToday:0,entriesToday:0,openCases:0}
 const links=[
+ {href:"/admin/health",label:"Database & SMS Diagnostics",description:"Check school database and send a controlled admin-only TextBee SMS test",icon:"🩺"},
  {href:"/admin/registry",label:"Guardian & Student Registry",description:"Verify legal guardians, students, relationship permissions and reference photos",icon:"👨‍👩‍👧"},
  {href:"/admin/visitors",label:"Visitor Records",description:"Manage visitor profiles and inspect registration history",icon:"📋"},
  {href:"/admin/reports",label:"Activity & Audit Reports",description:"Entry/exit charts, visit filters, staff attribution and audit trail",icon:"📊"},
