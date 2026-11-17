@@ -1,6 +1,6 @@
 import { NextRequest,NextResponse } from 'next/server'
 import { schoolDb,requireStaff,denyCrossOrigin,qrTokenPattern,revalidateGuardianRegistration,noStore,safeText } from '@/lib/server/client-compliance-db'
-import { UUID,requiresGuardianCheck } from '@/lib/client-compliance'
+import { requiresGuardianCheck } from '@/lib/client-compliance'
 
 export const dynamic='force-dynamic'
 const forbidden=()=>NextResponse.json({error:'Security login required'},{status:401})

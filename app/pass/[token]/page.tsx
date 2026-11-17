@@ -52,7 +52,7 @@ export default function VisitorPassPage(){
           <div><p className="text-xs font-bold uppercase tracking-widest text-[#82172a]">Reference</p>
             <h2 className="text-2xl font-extrabold">{pass.reference}</h2></div>
           <p className={"rounded-full px-4 py-2 text-sm font-bold "+(admitted?"bg-emerald-100 text-emerald-900":closed?"bg-red-100 text-red-900":"bg-amber-100 text-amber-900")}>
-            {expired&&!admitted?"EXPIRED":pass.status.replaceAll("_"," ")}
+            {expired&&!admitted?"EXPIRED":pass.status.replace(/_/g," ")}
           </p>
         </div>
         <div className="my-5 border-y border-rose-100 py-5">

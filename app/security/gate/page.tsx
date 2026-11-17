@@ -144,7 +144,7 @@ export default function GateOperations(){
          {registration&&<div className="min-w-0 space-y-5 rounded-2xl border border-rose-100 bg-white p-4 shadow-sm sm:p-6">
            <div className="flex flex-wrap items-center justify-between gap-2">
              <h2 className="text-xl font-bold">Security Review · {registration.reference}</h2>
-             <span className="rounded-full bg-[#f3e5e9] px-3 py-1.5 text-xs font-bold text-[#82172a]">{registration.status.replaceAll("_"," ")}</span>
+             <span className="rounded-full bg-[#f3e5e9] px-3 py-1.5 text-xs font-bold text-[#82172a]">{registration.status.replace(/_/g," ")}</span>
            </div>
            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
              <div className="space-y-2">
@@ -216,7 +216,7 @@ export default function GateOperations(){
              onClick={()=>{setNotice("Use the QR token from the visitor's saved pass to perform identity verification.");setRegistration(null)}}>
              <strong className="block break-words text-sm">{item.full_name}</strong>
              <span className="block text-xs text-gray-500">{item.reference_number} · {item.purpose}</span>
-             <span className={"mt-1 block text-xs font-bold "+(item.status==="NEEDS_REVIEW"?"text-red-800":"text-amber-800")}>{item.status.replaceAll("_"," ")}</span>
+             <span className={"mt-1 block text-xs font-bold "+(item.status==="NEEDS_REVIEW"?"text-red-800":"text-amber-800")}>{item.status.replace(/_/g," ")}</span>
            </button>)}
            {!pending.length&&<p className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">No pending pre-registrations.</p>}
          </div>

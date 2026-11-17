@@ -38,7 +38,7 @@ export function guardianDetailsMatch(claim:GuardianClaim, record:{
     normalizedWords(claim.studentGrade)===normalizedWords(student.grade) &&
     normalizedWords(claim.studentSection)===normalizedWords(student.section)
 }
-export function requiresGuardianCheck(visitorType:string,purpose:string):boolean {
+export function requiresGuardianCheck(_visitorType:string,purpose:string):boolean {
   // All child-related access requires a school-verified guardian relationship.
   // Visitors cannot escape student verification by selecting "Guest" instead of "Parent".
   return purpose==='Child Emergency' || purpose==='Visit Student'

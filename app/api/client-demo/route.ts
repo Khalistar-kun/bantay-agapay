@@ -7,7 +7,6 @@
  */
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { randomBytes } from 'crypto'
 import { verifyStaff } from '@/lib/auth/verifyStaff'
 
 export const dynamic = 'force-dynamic'
@@ -29,13 +28,7 @@ async function getCampusBoundary(supabase: any) {
   return { latitude, longitude, radius }
 }
 
-function campusDistance(lat: number, lon: number, targetLat: number, targetLon: number) {
-  const rad = Math.PI / 180
-  const dLat = (targetLat - lat) * rad
-  const dLon = (targetLon - lon) * rad
-  const arc = Math.sin(dLat / 2) ** 2 + Math.cos(lat * rad) * Math.cos(targetLat * rad) * Math.sin(dLon / 2) ** 2
-  return 6371000 * 2 * Math.atan2(Math.sqrt(arc), Math.sqrt(Math.max(0, 1 - arc)))
-}
+
 
 
 export async function GET(request: NextRequest) {

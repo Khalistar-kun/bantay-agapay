@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyStaff } from '@/lib/auth/verifyStaff'
-import { GuardianClaim, guardianDetailsMatch, normalizedWords, requiresGuardianCheck } from '@/lib/client-compliance'
+import { GuardianClaim, guardianDetailsMatch, requiresGuardianCheck } from '@/lib/client-compliance'
 
 export function schoolDb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL

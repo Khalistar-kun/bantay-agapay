@@ -27,9 +27,8 @@ export async function POST(request: NextRequest) {
 
     // Legacy visits must not bypass the guardian registry and pre-registration gate.
     const {data:legacy,error:legacyError}=await supabase.from("visits")
-      .select("id,pre_registration_id,purpose,visitors(visitor_type)").eq("id",visitId).maybeSingle()
+      .select("id,pre_registration_id,purpose").eq("id",visitId).maybeSingle()
     if(legacyError||!legacy)return NextResponse.json({error:"Visit not found"},{status:404})
-    const visitor=legacy.visitors as unknown as {visitor_type:string}|null
     if((legacy.purpose==="Child Emergency"||legacy.purpose==="Visit Student") &&
       !legacy.pre_registration_id){
       return NextResponse.json({error:"Guardian access requires the authorized gate-verification workflow"},{status:403})

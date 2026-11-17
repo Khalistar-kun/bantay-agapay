@@ -59,7 +59,7 @@ export default function SecurityIncidents(){
      <div className="mt-4 grid gap-3">
       {incidents.map(x=><article key={x.id} className="min-w-0 rounded-xl border border-rose-100 p-4">
        <div className="flex flex-wrap justify-between gap-2">
-        <strong className="text-sm">{x.category.replaceAll("_"," ")}</strong>
+        <strong className="text-sm">{x.category.replace(/_/g," ")}</strong>
         <span className={"text-xs font-bold "+(x.status==="OPEN"?"text-amber-800":"text-emerald-800")}>{x.status}</span>
        </div>
        {x.details&&<p className="mt-2 break-words text-sm text-gray-600">{x.details}</p>}
@@ -74,7 +74,7 @@ export default function SecurityIncidents(){
      <h2 className="text-xl font-bold">Report an Incident</h2>
      <label className="block text-sm font-semibold">Incident Type
       <select className={field+" mt-1"} value={category} onChange={e=>setCategory(e.target.value)}>
-       {categories.map(c=><option key={c} value={c}>{c.replaceAll("_"," ")}</option>)}
+       {categories.map(c=><option key={c} value={c}>{c.replace(/_/g," ")}</option>)}
       </select>
      </label>
      <label className="block text-sm font-semibold">Description / Action Taken

@@ -7,7 +7,6 @@ type Activity={timezone:string;days:number;series:Point[];summary:{currentlyInsi
 type Visit={id:string;name:string;reference:string;purpose:string;status:string;registeredAt:string;checkIn:string|null;checkOut:string|null;approvedBy:string|null;checkedOutBy:string|null;denialReason:string|null;destination:string}
 type Audit={id:string;action:string;entity_type:string|null;entity_id:string|null;user_id:string;created_at:string}
 const field="w-full min-w-0 rounded-xl border border-rose-200 bg-white px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-rose-300"
-function daysAgo(days:number){return new Date(Date.now()-days*86400000).toLocaleDateString('en-CA',{timeZone:'Asia/Manila'})}
 export default function SchoolReports(){
  const [tab,setTab]=useState<"activity"|"visits"|"audit">("activity")
  const [days,setDays]=useState(30)
