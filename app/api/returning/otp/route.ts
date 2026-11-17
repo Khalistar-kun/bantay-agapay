@@ -7,19 +7,19 @@ import { smsGatewayConfigured, sendReturningOtp } from '@/lib/server/sms-gateway
 
 export const dynamic='force-dynamic'
 const errorResponse=(message:string,status:number)=>NextResponse.json({error:message},{status,headers:noStore})
-const successNotice='If this number has a saved visitor profile, an SMS verification request has been queued. Check your phone.'
-/**
- * No-SMS registration always remains available. A visitor never needs an OTP to
- * submit a new registration or get an unapproved QR at home.
- * textbee is only enabled for the school's pre-existing inclusive-SMS Android SIM.
- */
+const successNotice='A verification SMS was queued. Check your phone for the six-digit code.'
+const secretsReady=()=>Boolean((process.env.BA_OTP_HMAC_SECRET||'').length>=32 &&
+  (process.env.BA_RATE_LIMIT_SECRET||'').length>=32)
 export async function GET(){
+  const configured=smsGatewayConfigured()&&secretsReady()
   return NextResponse.json({
-    freeSmsAvailable:smsGatewayConfigured(),
-    manualRegistrationAvailable:true,
+    verificationRequired:true,
+    freeSmsAvailable:configured,
+    manualRegistrationAvailable:false,
     freePlanMonthlyLimit:300,
     freePlanDailyLimit:50,
-    notice:'SMS is optional. If free SMS is unavailable, complete the form manually; security verifies identity at the gate.'
+    notice:configured?'SMS verification is required for everyone before face capture.':
+      'School-approved free SMS is unavailable. Registration is paused; contact school security.'
   },{headers:noStore})
 }
 function otpPepper(){
@@ -49,20 +49,19 @@ export async function POST(req:NextRequest){
  const action=body.action
  if(action!=='request'&&action!=='verify')
    return errorResponse('Unknown verification action',400)
+ if(!smsGatewayConfigured()||!secretsReady())
+   return errorResponse('School-approved free SMS is unavailable. Registration is paused; contact school security.',503)
  try{
    const secret=otpPepper()
    const phoneHash=hmac(secret,'phone|'+phone)
    if(action==='request'){
      if(!smsGatewayConfigured())
-       return errorResponse('Free SMS is not available. Complete registration without SMS and verify identity at the gate.',503)
-     const allowedIp=await consumeRateLimit(req,'returning-otp-request','new',8,3600)
-     const allowedPhone=await consumeRateLimit(req,'returning-otp-phone',phone,4,86400)
+       return errorResponse('School-approved free SMS is unavailable. Registration is paused.',503)
+     const allowedIp=await consumeRateLimit(req,'visitor-otp-request','new',8,3600)
+     const allowedPhone=await consumeRateLimit(req,'visitor-otp-phone',phone,4,86400)
      if(!allowedIp||!allowedPhone)return errorResponse('Too many requests. Contact the school for assistance.',429)
      const db=schoolDb()
-     const {data:person,error}=await db.from('visitors')
-       .select('id').eq('contact_number',phone).limit(1)
-     if(error)throw Error('Visitor lookup unavailable')
-     if(!person?.length)return NextResponse.json({message:successNotice},{headers:noStore})
+     // New and returning numbers follow the same OTP flow.
      const code=String(crypto.randomInt(0,1_000_000)).padStart(6,'0')
      const id=crypto.randomUUID()
      const {error:created}=await db.from('returning_otp_challenges').insert({
@@ -73,14 +72,14 @@ export async function POST(req:NextRequest){
      const delivered=await sendReturningOtp(phone,code)
      if(!delivered){
        await db.from('returning_otp_challenges').delete().eq('id',id)
-       return errorResponse('Free SMS could not be queued. Continue registration without SMS and ask school security to verify your identity.',503)
+       return errorResponse('Free SMS could not be queued. Registration is paused; contact school security.',503)
      }
      return NextResponse.json({message:successNotice},{headers:noStore})
    }
    const code=body.code
    if(typeof code!=='string'||!/^\d{6}$/.test(code))
      return errorResponse('Enter the six-digit verification code',400)
-   const allowed=await consumeRateLimit(req,'returning-otp-verify',phone,10,3600)
+   const allowed=await consumeRateLimit(req,'visitor-otp-verify',phone,10,3600)
    if(!allowed)return errorResponse('Too many verification attempts. Contact school security.',429)
    const db=schoolDb()
    const {data:challenge,error}=await db.from('returning_otp_challenges')
@@ -104,6 +103,15 @@ export async function POST(req:NextRequest){
      .gte('expires_at',new Date().toISOString()).select('id').maybeSingle()
    if(used.error||!used.data)return errorResponse('Verification code is invalid or expired',401)
 
+   // Mint one short-lived, one-use registration proof after atomically consuming
+   // the OTP. Never store the raw proof or a plaintext OTP.
+   const verificationToken=crypto.randomBytes(32).toString('hex')
+   const {error:proofError}=await db.from('visitor_phone_verifications').insert({
+     proof_hash:hmac(secret,'proof|'+verificationToken),phone_hash:phoneHash,
+     expires_at:new Date(Date.now()+10*60_000).toISOString()
+   })
+   if(proofError)throw Error('SMS proof unavailable')
+
    // Phone possession allows limited convenience prefill, NOT guardian authorization
    // or skipping a new live photo or manual school gate review.
    const {data:visitors,error:visitorError}=await db.from('visitors')
@@ -114,9 +122,9 @@ export async function POST(req:NextRequest){
    const types=new Set((visitors||[]).map(x=>x.visitor_type||'Guest'))
    const person=names.size===1&&types.size===1&&visitors?.length?visitors[0]:null
    return NextResponse.json({
-     verified:true,
+     verified:true,verificationToken,
      profile:person?{fullName:person.full_name,visitorType:person.visitor_type||'Guest'}:null,
-     notice:'Your mobile number is verified. A fresh face scan and security gate verification are still required.'
+     notice:'Phone verified. Finish registration within ten minutes; school security still verifies identity at the gate.'
    },{headers:noStore})
  }catch{
    return errorResponse('Verification is temporarily unavailable. Contact school security.',503)
