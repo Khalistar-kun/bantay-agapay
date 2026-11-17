@@ -29,7 +29,7 @@ function configurationReadiness():Readiness{
   if(!/^https:\/\//.test(faceURL))faceMissing.push("BA_FACE_COMPARISON_URL")
   if(!present("BA_FACE_COMPARISON_SECRET",24))faceMissing.push("BA_FACE_COMPARISON_SECRET")
   const threshold=Number(process.env.BA_FACE_MIN_CONFIDENCE)
-  if(!process.env.BA_FACE_MIN_CONFIDENCE||!Number.isFinite(threshold)||threshold<=0||threshold>1)
+  if(!process.env.BA_FACE_MIN_CONFIDENCE||!Number.isFinite(threshold)||threshold<0.9||threshold>0.9999)
     faceMissing.push("BA_FACE_MIN_CONFIDENCE")
   return {
     registration:{configured:registrationMissing.length===0&&smsMissing.length===0,
