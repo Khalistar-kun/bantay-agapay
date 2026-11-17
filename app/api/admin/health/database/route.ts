@@ -7,6 +7,38 @@ export const runtime = "nodejs"
 
 const headers = { "Cache-Control": "no-store, max-age=0" }
 type State = "connected" | "unavailable" | "not_configured"
+type Readiness = {
+  registration:{configured:boolean;missing:string[]};
+  sms:{configured:boolean;missing:string[]};
+  guardianFaceComparison:{configured:boolean;missing:string[]};
+  notice:string
+}
+function configurationReadiness():Readiness{
+  const registrationMissing:string[]=[]
+  const smsMissing:string[]=[]
+  const faceMissing:string[]=[]
+  const present=(key:string,min:number)=>Boolean((process.env[key]||"").length>=min)
+  if(!present("BA_RATE_LIMIT_SECRET",32))registrationMissing.push("BA_RATE_LIMIT_SECRET")
+  if(!present("BA_OTP_HMAC_SECRET",32))registrationMissing.push("BA_OTP_HMAC_SECRET")
+  if(!present("BA_OTP_HMAC_SECRET",32))smsMissing.push("BA_OTP_HMAC_SECRET")
+  if(!present("TEXTBEE_API_KEY",24))smsMissing.push("TEXTBEE_API_KEY")
+  if(!/^[a-zA-Z0-9_-]{8,64}$/.test(process.env.TEXTBEE_DEVICE_ID||""))smsMissing.push("TEXTBEE_DEVICE_ID")
+  if(process.env.BA_FREE_SMS_ONLY!=="true")smsMissing.push("BA_FREE_SMS_ONLY=true")
+  if(process.env.BA_SMS_CARRIER_INCLUDED!=="true")smsMissing.push("BA_SMS_CARRIER_INCLUDED=true (school carrier confirmation)")
+  const faceURL=process.env.BA_FACE_COMPARISON_URL||""
+  if(!/^https:\/\//.test(faceURL))faceMissing.push("BA_FACE_COMPARISON_URL")
+  if(!present("BA_FACE_COMPARISON_SECRET",24))faceMissing.push("BA_FACE_COMPARISON_SECRET")
+  const threshold=Number(process.env.BA_FACE_MIN_CONFIDENCE)
+  if(!process.env.BA_FACE_MIN_CONFIDENCE||!Number.isFinite(threshold)||threshold<=0||threshold>1)
+    faceMissing.push("BA_FACE_MIN_CONFIDENCE")
+  return {
+    registration:{configured:registrationMissing.length===0&&smsMissing.length===0,
+      missing:[...new Set([...registrationMissing,...smsMissing])]},
+    sms:{configured:smsMissing.length===0,missing:smsMissing},
+    guardianFaceComparison:{configured:faceMissing.length===0,missing:faceMissing},
+    notice:"Configuration checks are NOT SMS delivery tests, live biometric verification, rate-limit RPC execution, or proof of successful registration."
+  }
+}
 
 export async function GET() {
   // Do not disclose DB configuration or connectivity to unauthenticated visitors.
@@ -22,11 +54,12 @@ export async function GET() {
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const result: { status: State; database: State; checks: Record<string, State>; checkedAt: string } = {
+  const result: { status: State; database: State; checks: Record<string, State>; checkedAt: string; readiness: Readiness } = {
     status: "unavailable",
     database: "unavailable",
     checks: { connectivity: "unavailable", registrationRateLimits: "unavailable", guardianRegistry: "unavailable" },
     checkedAt: new Date().toISOString(),
+    readiness:configurationReadiness(),
   }
 
   if (!url || !serviceKey || !/^https:\/\//.test(url)) {
