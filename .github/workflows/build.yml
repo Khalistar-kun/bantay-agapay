@@ -65,7 +65,9 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -f tests/sql/staging_fixture.sql
           psql -v ON_ERROR_STOP=1 -f docs/sql/bantay-agapay-migrations-09-12-one-shot.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/13_required_visitor_phone_otp.sql
           psql -v ON_ERROR_STOP=1 -f tests/sql/gate_transactions.sql
+          psql -v ON_ERROR_STOP=1 -f tests/sql/otp_phone_verification.sql
 
   browser-regression:
     if: github.ref == 'refs/heads/feature/client-compliance-integration-20261117' || (github.event_name == 'pull_request' && github.head_ref == 'feature/client-compliance-integration-20261117')
