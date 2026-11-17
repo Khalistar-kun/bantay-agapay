@@ -21,12 +21,21 @@ export async function GET() {
     preregTodayRes,entryTodayRes,reviewRes] = await Promise.all([
     supabase.from("visits").select("id",{count:"exact",head:true}).gte("registration_time",startOfDay),
     supabase.from("visits").select("id",{count:"exact",head:true}).eq("status","INSIDE"),
-    supabase.from("visits").select("id",{count:"exact",head:true}).eq("status","PENDING"),
+    supabase.from("pre_registrations").select("id",{count:"exact",head:true})
+      .in("status",["PRE_REGISTERED","NEEDS_REVIEW"]).gt("expires_at",new Date().toISOString()),
     supabase.from("visits").select("id",{count:"exact",head:true}).eq("status","EXITED").gte("check_out",startOfDay),
     supabase.from("pre_registrations").select("id",{count:"exact",head:true}).gte("submitted_at",startOfDay),
     supabase.from("visits").select("id",{count:"exact",head:true}).gte("check_in",startOfDay),
     supabase.from("security_incidents").select("id",{count:"exact",head:true}).eq("status","OPEN"),
   ])
+
+  // Never display false zeroes for a failed private school-data query.
+  const checks=[todayVisitorsRes,currentlyInsideRes,pendingApprovalRes,completedTodayRes,
+    preregTodayRes,entryTodayRes,reviewRes]
+  if(checks.some(result=>result.error)){
+    return NextResponse.json({error:"School dashboard statistics are unavailable. Refresh or contact an administrator."},
+      {status:503,headers:{"Cache-Control":"no-store"}})
+  }
 
   return NextResponse.json({
     todayVisitors: todayVisitorsRes.count ?? 0,
@@ -36,5 +45,5 @@ export async function GET() {
     preRegisteredToday: preregTodayRes.count ?? 0,
     entriesToday: entryTodayRes.count ?? 0,
     openCases: reviewRes.count ?? 0,
-  })
+  },{headers:{"Cache-Control":"no-store"}})
 }
