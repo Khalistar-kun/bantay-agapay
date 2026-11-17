@@ -25,6 +25,10 @@ export default function PreRegisterPage(){
   const [form,setForm]=useState<FormData>(initial)
   const [step,setStep]=useState(0)
   const [returning,setReturning]=useState(false)
+  const [otpBusy,setOtpBusy]=useState(false)
+  const [otpCode,setOtpCode]=useState("")
+  const [otpMessage,setOtpMessage]=useState("")
+  const [otpVerified,setOtpVerified]=useState(false)
   const [destinations,setDestinations]=useState<Destination[]>([])
   const [filter,setFilter]=useState("")
   const [faculty,setFaculty]=useState<Faculty[]>([])
@@ -49,7 +53,34 @@ export default function PreRegisterPage(){
       .then(j=>setDestinations(j.destinations||[]))
       .catch(e=>setError(e instanceof Error?e.message:"Could not load campus destinations"))
   },[])
-  function update<K extends keyof FormData>(key:K,value:FormData[K]){setForm(f=>({...f,[key]:value}));setError("")}
+  function update<K extends keyof FormData>(key:K,value:FormData[K]){
+    setForm(f=>({...f,[key]:value}))
+    if(key==="contactNumber"){setOtpVerified(false);setOtpMessage("");setOtpCode("")}
+    setError("")
+  }
+  async function returningOtp(action:"request"|"verify"){
+    if(otpBusy)return
+    if(!/^09\d{9}$/.test(form.contactNumber)){setError("Enter an 11-digit mobile number to receive a code.");return}
+    if(action==="verify"&&!/^\d{6}$/.test(otpCode)){setError("Enter the six-digit code from your SMS.");return}
+    setOtpBusy(true);setOtpMessage("");setError("")
+    try{
+      const res=await fetch("/api/returning/otp",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action,contactNumber:form.contactNumber,...(action==="verify"?{code:otpCode}:{})})
+      })
+      const data=await res.json()
+      if(!res.ok)throw Error(data.error||"SMS verification unavailable")
+      if(action==="verify"&&data.verified===true){
+        if(data.profile?.fullName && VISITOR_TYPES.includes(data.profile.visitorType)){
+          setForm(f=>({...f,fullName:data.profile.fullName,visitorType:data.profile.visitorType}))
+        }
+        setOtpVerified(true)
+      }
+      setOtpMessage(data.notice||data.message||"Verification request completed.")
+    }catch(e){
+      setError(e instanceof Error?e.message:"SMS verification unavailable")
+    }finally{setOtpBusy(false)}
+  }
   function next(e:React.FormEvent){
     e.preventDefault()
     if(!form.fullName.trim()||form.fullName.trim().length<3||!/^09\d{9}$/.test(form.contactNumber)){
@@ -108,7 +139,32 @@ export default function PreRegisterPage(){
         {step===0&&<form onSubmit={next} className="space-y-5">
           <div><h2 className="text-xl font-bold">Step 1 · Your Personal Information</h2>
             <p className="mt-1 text-sm text-gray-600">Required fields help school security process your visit without unnecessary delays.</p></div>
-          {returning&&<p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">For your privacy, returning visitors must re-enter their information until identity-based account retrieval is enabled. A phone number alone cannot unlock someone's saved details.</p>}
+          {returning&&<section className="min-w-0 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <h3 className="text-sm font-bold text-[#82172a]">Returning Visitor · Verify Your Mobile Number</h3>
+            <p className="text-xs leading-relaxed text-amber-950">
+              Enter your phone number below to request an optional one-time SMS code.
+              After a successful code check, we may fill your name and visitor type from a previous visit.
+              We never unlock student records or prior face photos this way.
+            </p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <input className={input} aria-label="One-time SMS code" inputMode="numeric"
+                autoComplete="one-time-code" maxLength={6} value={otpCode}
+                onChange={e=>{setOtpCode(e.target.value.replace(/\D/g,""));setOtpMessage("")}}
+                placeholder="Six-digit SMS code"/>
+              <button type="button" disabled={otpBusy||otpVerified} onClick={()=>void returningOtp("request")}
+                className="rounded-xl border border-[#82172a] px-4 py-3 text-sm font-semibold text-[#82172a]">
+                {otpBusy?"Processing…":"Send SMS Code"}
+              </button>
+            </div>
+            <button type="button" disabled={otpBusy||otpVerified||otpCode.length!==6}
+              onClick={()=>void returningOtp("verify")}
+              className="w-full rounded-xl bg-[#82172a] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
+              Verify Code & Prefill Information
+            </button>
+            {otpMessage&&<p role="status" className="rounded-lg bg-white p-3 text-xs text-[#53323b]">{otpMessage}</p>}
+            {otpVerified&&<p className="text-xs font-bold text-emerald-800">Mobile number verified. Complete a fresh face scan and obtain gate approval.</p>}
+            <p className="text-xs text-amber-950">SMS service not configured? You can still register manually with your full details. A phone number alone never counts as verified identity.</p>
+          </section>}
           <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="min-w-0 text-sm font-semibold">Full Legal Name *
               <input required autoComplete="name" maxLength={200} className={input+" mt-1"} value={form.fullName} onChange={e=>update("fullName",e.target.value)} placeholder="First Middle Last" />

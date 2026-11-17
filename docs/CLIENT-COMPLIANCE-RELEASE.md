@@ -55,3 +55,14 @@ Without this service or a confident match, guardians cannot be approved by ordin
 ### Abuse limit setup
 BA_RATE_LIMIT_SECRET must be provisioned as a server-only HMAC key of at least 32 characters.
 The private rate-limit table and service-role-only RPC must be applied in staging and tested.
+
+
+### Returning visitor SMS OTP (development-only)
+The request and confirmation endpoints are implemented, but not activated in production.
+BA_OTP_HMAC_SECRET (min 32 characters), BA_SMS_GATEWAY_URL (approved HTTPS school gateway),
+and BA_SMS_GATEWAY_SECRET (min 24 characters) must be configured before staging tests.
+The provider must accept JSON {to, message} using a server-side Bearer token.
+Codes expire after five minutes, cannot be replayed, and do not authorize guardian status.
+Unknown phone numbers receive the same generic acknowledgement. Phone possession only
+unlocks minimal profile prefill; child data and previous face images are never returned.
+Add reviewed costs, SMS privacy authorization, phone recycling policy, and gateway reliability tests before release.
