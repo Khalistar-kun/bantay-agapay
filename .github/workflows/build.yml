@@ -38,7 +38,7 @@ jobs:
           retention-days: 7
 
   database-regression:
-    if: github.ref == 'refs/heads/feature/client-compliance-integration-20261117'
+    if: github.ref == 'refs/heads/feature/client-compliance-integration-20261117' || (github.event_name == 'pull_request' && github.head_ref == 'feature/client-compliance-integration-20261117')
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -70,7 +70,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f tests/sql/gate_transactions.sql
 
   browser-regression:
-    if: github.ref == 'refs/heads/feature/client-compliance-integration-20261117'
+    if: github.ref == 'refs/heads/feature/client-compliance-integration-20261117' || (github.event_name == 'pull_request' && github.head_ref == 'feature/client-compliance-integration-20261117')
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://build-placeholder.supabase.co
