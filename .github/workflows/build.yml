@@ -64,10 +64,7 @@ jobs:
       - name: Apply schema to disposable database, then exercise gate transactions
         run: |
           psql -v ON_ERROR_STOP=1 -f tests/sql/staging_fixture.sql
-          psql -v ON_ERROR_STOP=1 -f supabase/migrations/09_lockdown_public_visit_access.sql
-          psql -v ON_ERROR_STOP=1 -f supabase/migrations/10_client_guardian_preregistration.sql
-          psql -v ON_ERROR_STOP=1 -f supabase/migrations/11_returning_visitor_otp.sql
-          psql -v ON_ERROR_STOP=1 -f supabase/migrations/12_guardian_registry_operations.sql
+          psql -v ON_ERROR_STOP=1 -f docs/sql/bantay-agapay-migrations-09-12-one-shot.sql
           psql -v ON_ERROR_STOP=1 -f tests/sql/gate_transactions.sql
 
   browser-regression:
