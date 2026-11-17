@@ -23,6 +23,9 @@ export default function GateOperations(){
  const [token,setToken]=useState("")
  const [registration,setRegistration]=useState<Registration|null>(null)
  const [pending,setPending]=useState<Pending[]>([])
+ const [pendingError,setPendingError]=useState("")
+ const [queueFilter,setQueueFilter]=useState("")
+ const [queueSyncedAt,setQueueSyncedAt]=useState<string|null>(null)
  const [error,setError]=useState("")
  const [notice,setNotice]=useState("")
  const [reason,setReason]=useState("")
@@ -38,8 +41,11 @@ export default function GateOperations(){
    try{
      const res=await fetch("/api/security/gate?list=pending",{cache:"no-store"})
      const data=await res.json()
-     if(res.ok)setPending(data.registrations||[])
-   }catch{}
+     if(!res.ok)throw Error(data.error||"Could not load pending gate queue")
+     setPending(data.registrations||[])
+     setPendingError("")
+     setQueueSyncedAt(new Date().toISOString())
+   }catch(e){setPendingError(e instanceof Error?e.message:"Gate queue is temporarily unavailable")}
  }
  useEffect(()=>{void loadPending();const timer=setInterval(()=>void loadPending(),15000);return()=>clearInterval(timer)},[])
  useEffect(()=>{
@@ -112,6 +118,11 @@ export default function GateOperations(){
  const invalidGuardian=isGuardian&&registration?.guardianDetailsStatus!=="MATCH"
  const eligible=registration?.status==="PRE_REGISTERED"&&
    registration.photoReviewStatus==="PASSED"&&!invalidGuardian&&(!isGuardian||registration.biometricStatus==="MATCH")&&Date.now()<new Date(registration.expiresAt).getTime()
+ const filteredPending=pending.filter(item=>{
+   const query=queueFilter.trim().toLowerCase()
+   return !query||[item.full_name,item.reference_number,item.purpose,item.status]
+     .some(v=>String(v||"").toLowerCase().includes(query))
+ })
  return <main className="min-h-screen min-w-0 overflow-x-clip bg-[#faf6f8] px-3 py-5 text-[#291722] sm:px-6">
    <div className="mx-auto max-w-6xl space-y-5">
      <header className="rounded-2xl bg-gradient-to-br from-[#ad2945] to-[#471320] p-5 text-white sm:p-8">
@@ -222,15 +233,26 @@ export default function GateOperations(){
            <button onClick={()=>void loadPending()} className="text-sm font-semibold text-[#82172a]">Refresh</button>
          </div>
          <p className="mt-1 text-xs text-gray-500">Registrations submitted from home or flagged for review. They are not yet recorded as campus entries.</p>
+         {queueSyncedAt&&<p className="mt-2 text-xs text-gray-500">Last updated {new Date(queueSyncedAt).toLocaleTimeString("en-PH",{timeZone:"Asia/Manila"})} PH</p>}
+         {pendingError&&<p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-900">
+           {pendingError} <button type="button" onClick={()=>void loadPending()} className="font-bold underline">Retry</button>
+         </p>}
+         <label className="mt-3 block text-xs font-semibold text-gray-600">Search pending visitors
+           <input className={field+" mt-1"} value={queueFilter} onChange={e=>setQueueFilter(e.target.value)}
+             placeholder="Name, reference or status"/>
+         </label>
          <div className="mt-4 grid gap-2">
-           {pending.map(item=><button type="button" key={item.id}
+           {filteredPending.map(item=><button type="button" key={item.id}
              className="min-w-0 rounded-xl border p-4 text-left hover:border-[#82172a]"
              onClick={()=>{setNotice("Use the QR token from the visitor's saved pass to perform identity verification.");setRegistration(null)}}>
              <strong className="block break-words text-sm">{item.full_name}</strong>
              <span className="block text-xs text-gray-500">{item.reference_number} · {item.purpose}</span>
              <span className={"mt-1 block text-xs font-bold "+(item.status==="NEEDS_REVIEW"?"text-red-800":"text-amber-800")}>{item.status.replace(/_/g," ")}</span>
            </button>)}
-           {!pending.length&&<p className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">No pending pre-registrations.</p>}
+           {!filteredPending.length&&<p className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">
+             {pendingError?"Current queue could not be confirmed. Retry the connection.":
+               queueFilter?"No pending registrations match your search.":"No pending pre-registrations."}
+           </p>}
          </div>
        </aside>
      </div>
