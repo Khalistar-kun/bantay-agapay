@@ -9,6 +9,21 @@ const destinationId='c1d74422-21b1-4834-9a87-10f70ee345c2'
 const token='a'.repeat(32)
 
 async function intercept(page){
+ await page.route('**/api/returning/otp',async route=>{
+  if(route.request().method()==='GET'){
+   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+    verificationRequired:true,freeSmsAvailable:true,manualRegistrationAvailable:false
+   })})
+   return
+  }
+  const request=route.request().postDataJSON()
+  const body=request.action==='request'
+   ?{message:'An SMS verification code was queued.'}
+   :{verified:true,verificationToken:'b'.repeat(64),
+     profile:{fullName:'Fictional Returning Guest',visitorType:'Guest'},
+     notice:'Phone verified. Finish registration within ten minutes.'}
+  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)})
+ })
  await page.route('**/api/client-demo?action=destinations',route=>route.fulfill({
   status:200,contentType:'application/json',
   body:JSON.stringify({destinations:[{
@@ -50,6 +65,13 @@ async function registration(browser,width){
   await page.locator('select').last().selectOption(destinationId)
   await page.locator('input[type="checkbox"]').check()
   await noOverflow(page,'guardian fields '+width)
+  assert.equal(await page.getByRole('button',{name:/Continue to Face Verification/}).isDisabled(),true,
+   'New visitor must verify SMS before face capture')
+  await page.getByRole('button',{name:'Send Free SMS Code'}).click()
+  await page.getByLabel('One-time SMS code').fill('123456')
+  await page.getByRole('button',{name:'Verify SMS Code'}).click()
+  await page.getByText(/Mobile number verified. Complete registration/).waitFor()
+  assert.equal(await page.getByRole('button',{name:/Continue to Face Verification/}).isEnabled(),true)
   await page.getByRole('button',{name:/Continue to Face Verification/}).click()
   await page.getByRole('heading',{name:'Step 2 · Face Verification'}).waitFor({timeout:15000})
   await noOverflow(page,'face capture '+width)
@@ -61,45 +83,34 @@ async function returning(browser){
  const page=await browser.newPage({viewport:{width:375,height:800},isMobile:true,hasTouch:true})
  try{
   await intercept(page)
-  await page.route('**/api/returning/otp',async route=>{
-   if(route.request().method()==='GET'){
-     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
-       freeSmsAvailable:true,manualRegistrationAvailable:true
-     })})
-     return
-   }
-   const req=route.request().postDataJSON()
-   const body=req.action==='request'
-    ?{message:'If this number has a saved visitor profile, a verification code has been sent. Check your SMS.'}
-    :{verified:true,profile:{fullName:'Fictional Returning Guest',visitorType:'Guest'},
-       notice:'Your mobile number is verified. A fresh face scan and security gate verification are still required.'}
-   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)})
-  })
   await page.goto(base+'/pre-register?returning=1',{waitUntil:'domcontentloaded'})
   await page.getByRole('heading',{name:'Returning Visitor',exact:true}).waitFor()
   await page.getByLabel('Contact Number *').fill('09170000000')
   await page.getByRole('button',{name:'Send Free SMS Code'}).click()
-  await page.getByText(/If this number has a saved visitor profile/).waitFor()
+  await page.getByText(/An SMS verification code was queued/).waitFor()
   await page.getByLabel('One-time SMS code').fill('123456')
-  await page.getByRole('button',{name:'Verify Code & Prefill Information'}).click()
-  await page.getByText('Mobile number verified. Complete a fresh face scan and obtain gate approval.').waitFor()
+  await page.getByRole('button',{name:'Verify SMS Code'}).click()
+  await page.getByText(/Mobile number verified. Complete registration/).waitFor()
   assert.equal(await page.getByLabel('Full Legal Name *').inputValue(),'Fictional Returning Guest')
+  await page.getByLabel('Contact Number *').fill('09170000001')
+  assert.equal(await page.getByRole('button',{name:/Continue to Face Verification/}).isDisabled(),true,
+   'Editing phone after verification invalidates proof')
   await noOverflow(page,'returning OTP 375px')
   console.log('PASS returning visitor OTP UX 375px')
  }finally{await page.close()}
 }
 
-async function returningFreeManual(browser){
+async function unavailableSmsBlocksRegistration(browser){
  const page=await browser.newPage({viewport:{width:375,height:800},isMobile:true,hasTouch:true})
  try{
   await intercept(page)
   await page.route('**/api/returning/otp',route=>route.fulfill({
    status:200,contentType:'application/json',
-   body:JSON.stringify({freeSmsAvailable:false,manualRegistrationAvailable:true})
+   body:JSON.stringify({freeSmsAvailable:false,verificationRequired:true,manualRegistrationAvailable:false})
   }))
   await page.goto(base+'/pre-register?returning=1',{waitUntil:'domcontentloaded'})
   await page.getByRole('heading',{name:'Returning Visitor',exact:true}).waitFor()
-  await page.getByText('No SMS needed — complete the form to continue. No paid SMS gateway is required.').waitFor()
+  await page.getByText(/Online registration is paused/).waitFor()
   assert.equal(await page.getByRole('button',{name:'Send Free SMS Code'}).count(),0)
   await page.getByLabel('Full Legal Name *').fill('Returning Fictional Guest')
   await page.getByLabel('Contact Number *').fill('09170000000')
@@ -107,9 +118,9 @@ async function returningFreeManual(browser){
   await page.locator('select').last().selectOption(destinationId)
   await page.locator('input[type="checkbox"]').check()
   await page.getByRole('button',{name:/Continue to Face Verification/}).click()
-  await page.getByRole('heading',{name:'Step 2 · Face Verification'}).waitFor()
-  await noOverflow(page,'no-sms returning registration 375px')
-  console.log('PASS no-cost returning registration without SMS')
+  assert.equal(await page.getByRole('button',{name:/Continue to Face Verification/}).isDisabled(),true)
+  await noOverflow(page,'SMS unavailable 375px')
+  console.log('PASS free-only SMS unavailable blocks registration')
  }finally{await page.close()}
 }
 
@@ -140,7 +151,7 @@ async function pendingPass(browser){
  try{
   for(const w of [320,375,390,768,1280])await registration(browser,w)
   await returning(browser)
-  await returningFreeManual(browser)
+  await unavailableSmsBlocksRegistration(browser)
   await pendingPass(browser)
   console.log('All isolated visitor browser checks passed')
  }finally{await browser.close()}
