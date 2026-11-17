@@ -70,7 +70,7 @@ async function returning(browser){
    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)})
   })
   await page.goto(base+'/pre-register?returning=1',{waitUntil:'domcontentloaded'})
-  await page.getByRole('heading',{name:/Returning Visitor/}).waitFor()
+  await page.getByRole('heading',{name:'Returning Visitor',exact:true}).waitFor()
   await page.getByLabel('Contact Number *').fill('09170000000')
   await page.getByRole('button',{name:'Send SMS Code'}).click()
   await page.getByText(/If this number has a saved visitor profile/).waitFor()
