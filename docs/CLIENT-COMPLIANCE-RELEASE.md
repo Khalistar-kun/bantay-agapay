@@ -66,3 +66,19 @@ Codes expire after five minutes, cannot be replayed, and do not authorize guardi
 Unknown phone numbers receive the same generic acknowledgement. Phone possession only
 unlocks minimal profile prefill; child data and previous face images are never returned.
 Add reviewed costs, SMS privacy authorization, phone recycling policy, and gateway reliability tests before release.
+
+
+### Zero-paid-SMS release policy (November 2026)
+The default returning-visitor route is manual pre-registration without any SMS or OTP charges.
+Only optionally enable textbee's **Free** plan with an Android phone already owned by the school,
+and a SIM whose existing plan includes SMS. Carrier SMS charges are NOT covered by textbee's
+free gateway; setting the flag does not prove the carrier tariff is free.
+Free tier provider limits: 1 phone, 50 combined messages daily, 300 monthly. No auto-upgrade.
+The free SMS provider is **strictly** limited to https://api.textbee.dev/api/v1/gateway/send-sms.
+Required server-only settings for optional SMS: `TEXTBEE_API_KEY`,
+`BA_FREE_SMS_ONLY=true`, and `BA_SMS_CARRIER_INCLUDED=true`; optionally `TEXTBEE_DEVICE_ID`.
+`BA_OTP_HMAC_SECRET` and `BA_RATE_LIMIT_SECRET` remain mandatory for OTP and throttling.
+Do **not** set `BA_SMS_CARRIER_INCLUDED` without checking the SIM plan and its fair-use rules.
+If the phone, SIM, free tier, or internet connection is unavailable, visitors still register
+normally with a new face capture and QR; guards perform identity and guardian validation at gate.
+The previous generic paid external SMS gateway configuration is not used by the adapter.

@@ -29,6 +29,7 @@ export default function PreRegisterPage(){
   const [otpCode,setOtpCode]=useState("")
   const [otpMessage,setOtpMessage]=useState("")
   const [otpVerified,setOtpVerified]=useState(false)
+  const [freeSmsAvailable,setFreeSmsAvailable]=useState(false)
   const [destinations,setDestinations]=useState<Destination[]>([])
   const [filter,setFilter]=useState("")
   const [faculty,setFaculty]=useState<Faculty[]>([])
@@ -43,6 +44,10 @@ export default function PreRegisterPage(){
   const choices=destinations.filter(d=>((d.name+" "+(d.building||"")).toLowerCase()).includes(filter.toLowerCase()))
   useEffect(()=>{
     setReturning(new URLSearchParams(window.location.search).get("returning")==="1")
+    fetch("/api/returning/otp",{cache:"no-store"})
+      .then(async r=>r.ok?await r.json():null)
+      .then(data=>setFreeSmsAvailable(data?.freeSmsAvailable===true))
+      .catch(()=>setFreeSmsAvailable(false))
     fetch("/api/faculty-directory",{cache:"no-store"}).then(async response=>{
       const j=await response.json()
       if(!response.ok)throw Error(j.error||"Faculty directory unavailable")
@@ -59,7 +64,7 @@ export default function PreRegisterPage(){
     setError("")
   }
   async function returningOtp(action:"request"|"verify"){
-    if(otpBusy)return
+    if(otpBusy||!freeSmsAvailable)return
     if(!/^09\d{9}$/.test(form.contactNumber)){setError("Enter an 11-digit mobile number to receive a code.");return}
     if(action==="verify"&&!/^\d{6}$/.test(otpCode)){setError("Enter the six-digit code from your SMS.");return}
     setOtpBusy(true);setOtpMessage("");setError("")
@@ -140,30 +145,36 @@ export default function PreRegisterPage(){
           <div><h2 className="text-xl font-bold">Step 1 · Your Personal Information</h2>
             <p className="mt-1 text-sm text-gray-600">Required fields help school security process your visit without unnecessary delays.</p></div>
           {returning&&<section className="min-w-0 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <h3 className="text-sm font-bold text-[#82172a]">Returning Visitor · Verify Your Mobile Number</h3>
+            <h3 className="text-sm font-bold text-[#82172a]">Returning Visitor · Free Registration</h3>
             <p className="text-xs leading-relaxed text-amber-950">
-              Enter your phone number below to request an optional one-time SMS code.
-              After a successful code check, we may fill your name and visitor type from a previous visit.
-              We never unlock student records or prior face photos this way.
+              You do not need an SMS code or mobile load to register. Enter your information below,
+              capture a fresh face photo, and save the QR for gate verification.
+              Your details will be checked by school security before entry.
             </p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-              <input className={input} aria-label="One-time SMS code" inputMode="numeric"
-                autoComplete="one-time-code" maxLength={6} value={otpCode}
-                onChange={e=>{setOtpCode(e.target.value.replace(/\D/g,""));setOtpMessage("")}}
-                placeholder="Six-digit SMS code"/>
-              <button type="button" disabled={otpBusy||otpVerified} onClick={()=>void returningOtp("request")}
-                className="rounded-xl border border-[#82172a] px-4 py-3 text-sm font-semibold text-[#82172a]">
-                {otpBusy?"Processing…":"Send SMS Code"}
+            {freeSmsAvailable&&<div className="space-y-2 border-t border-amber-200 pt-3">
+              <p className="text-xs text-amber-950">Optional: The school's Android SIM provides SMS verification under its existing texting plan.
+                This can prefill your name and visitor type. Student records and old face photos remain protected.</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <input className={input} aria-label="One-time SMS code" inputMode="numeric"
+                  autoComplete="one-time-code" maxLength={6} value={otpCode}
+                  onChange={e=>{setOtpCode(e.target.value.replace(/\D/g,""));setOtpMessage("")}}
+                  placeholder="Six-digit SMS code"/>
+                <button type="button" disabled={otpBusy||otpVerified} onClick={()=>void returningOtp("request")}
+                  className="rounded-xl border border-[#82172a] px-4 py-3 text-sm font-semibold text-[#82172a]">
+                  {otpBusy?"Processing…":"Send Free SMS Code"}
+                </button>
+              </div>
+              <button type="button" disabled={otpBusy||otpVerified||otpCode.length!==6}
+                onClick={()=>void returningOtp("verify")}
+                className="w-full rounded-xl bg-[#82172a] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
+                Verify Code & Prefill Information
               </button>
-            </div>
-            <button type="button" disabled={otpBusy||otpVerified||otpCode.length!==6}
-              onClick={()=>void returningOtp("verify")}
-              className="w-full rounded-xl bg-[#82172a] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
-              Verify Code & Prefill Information
-            </button>
-            {otpMessage&&<p role="status" className="rounded-lg bg-white p-3 text-xs text-[#53323b]">{otpMessage}</p>}
-            {otpVerified&&<p className="text-xs font-bold text-emerald-800">Mobile number verified. Complete a fresh face scan and obtain gate approval.</p>}
-            <p className="text-xs text-amber-950">SMS service not configured? You can still register manually with your full details. A phone number alone never counts as verified identity.</p>
+              {otpMessage&&<p role="status" className="rounded-lg bg-white p-3 text-xs text-[#53323b]">{otpMessage}</p>}
+              {otpVerified&&<p className="text-xs font-bold text-emerald-800">Mobile number verified. Complete a fresh face scan and obtain gate approval.</p>}
+            </div>}
+            {!freeSmsAvailable&&<p className="rounded-lg bg-white p-3 text-xs text-amber-950">
+              No SMS needed — complete the form to continue. No paid SMS gateway is required.
+            </p>}
           </section>}
           <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="min-w-0 text-sm font-semibold">Full Legal Name *

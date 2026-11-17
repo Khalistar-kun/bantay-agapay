@@ -7,7 +7,21 @@ import { smsGatewayConfigured, sendReturningOtp } from '@/lib/server/sms-gateway
 
 export const dynamic='force-dynamic'
 const errorResponse=(message:string,status:number)=>NextResponse.json({error:message},{status,headers:noStore})
-const successNotice='If this number has a saved visitor profile, a verification code has been sent. Check your SMS.'
+const successNotice='If this number has a saved visitor profile, an SMS verification request has been queued. Check your phone.'
+/**
+ * No-SMS registration always remains available. A visitor never needs an OTP to
+ * submit a new registration or get an unapproved QR at home.
+ * textbee is only enabled for the school's pre-existing inclusive-SMS Android SIM.
+ */
+export async function GET(){
+  return NextResponse.json({
+    freeSmsAvailable:smsGatewayConfigured(),
+    manualRegistrationAvailable:true,
+    freePlanMonthlyLimit:300,
+    freePlanDailyLimit:50,
+    notice:'SMS is optional. If free SMS is unavailable, complete the form manually; security verifies identity at the gate.'
+  },{headers:noStore})
+}
 function otpPepper(){
  const secret=process.env.BA_OTP_HMAC_SECRET||''
  if(secret.length<32)throw Error('One-time password service unconfigured')
@@ -40,7 +54,7 @@ export async function POST(req:NextRequest){
    const phoneHash=hmac(secret,'phone|'+phone)
    if(action==='request'){
      if(!smsGatewayConfigured())
-       return errorResponse('The school SMS verification service is not configured',503)
+       return errorResponse('Free SMS is not available. Complete registration without SMS and verify identity at the gate.',503)
      const allowedIp=await consumeRateLimit(req,'returning-otp-request','new',8,3600)
      const allowedPhone=await consumeRateLimit(req,'returning-otp-phone',phone,4,86400)
      if(!allowedIp||!allowedPhone)return errorResponse('Too many requests. Contact the school for assistance.',429)
@@ -59,7 +73,7 @@ export async function POST(req:NextRequest){
      const delivered=await sendReturningOtp(phone,code)
      if(!delivered){
        await db.from('returning_otp_challenges').delete().eq('id',id)
-       return errorResponse('The SMS gateway is unavailable. Please try again through school security.',503)
+       return errorResponse('Free SMS could not be queued. Continue registration without SMS and ask school security to verify your identity.',503)
      }
      return NextResponse.json({message:successNotice},{headers:noStore})
    }

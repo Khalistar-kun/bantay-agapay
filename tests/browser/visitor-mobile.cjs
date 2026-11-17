@@ -62,6 +62,12 @@ async function returning(browser){
  try{
   await intercept(page)
   await page.route('**/api/returning/otp',async route=>{
+   if(route.request().method()==='GET'){
+     await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+       freeSmsAvailable:true,manualRegistrationAvailable:true
+     })})
+     return
+   }
    const req=route.request().postDataJSON()
    const body=req.action==='request'
     ?{message:'If this number has a saved visitor profile, a verification code has been sent. Check your SMS.'}
@@ -72,7 +78,7 @@ async function returning(browser){
   await page.goto(base+'/pre-register?returning=1',{waitUntil:'domcontentloaded'})
   await page.getByRole('heading',{name:'Returning Visitor',exact:true}).waitFor()
   await page.getByLabel('Contact Number *').fill('09170000000')
-  await page.getByRole('button',{name:'Send SMS Code'}).click()
+  await page.getByRole('button',{name:'Send Free SMS Code'}).click()
   await page.getByText(/If this number has a saved visitor profile/).waitFor()
   await page.getByLabel('One-time SMS code').fill('123456')
   await page.getByRole('button',{name:'Verify Code & Prefill Information'}).click()
@@ -82,6 +88,31 @@ async function returning(browser){
   console.log('PASS returning visitor OTP UX 375px')
  }finally{await page.close()}
 }
+
+async function returningFreeManual(browser){
+ const page=await browser.newPage({viewport:{width:375,height:800},isMobile:true,hasTouch:true})
+ try{
+  await intercept(page)
+  await page.route('**/api/returning/otp',route=>route.fulfill({
+   status:200,contentType:'application/json',
+   body:JSON.stringify({freeSmsAvailable:false,manualRegistrationAvailable:true})
+  }))
+  await page.goto(base+'/pre-register?returning=1',{waitUntil:'domcontentloaded'})
+  await page.getByRole('heading',{name:'Returning Visitor',exact:true}).waitFor()
+  await page.getByText('No SMS needed — complete the form to continue. No paid SMS gateway is required.').waitFor()
+  assert.equal(await page.getByRole('button',{name:'Send Free SMS Code'}).count(),0)
+  await page.getByLabel('Full Legal Name *').fill('Returning Fictional Guest')
+  await page.getByLabel('Contact Number *').fill('09170000000')
+  await page.getByLabel('Purpose of Visit *').selectOption('Teacher Appointment')
+  await page.locator('select').last().selectOption(destinationId)
+  await page.locator('input[type="checkbox"]').check()
+  await page.getByRole('button',{name:/Continue to Face Verification/}).click()
+  await page.getByRole('heading',{name:'Step 2 · Face Verification'}).waitFor()
+  await noOverflow(page,'no-sms returning registration 375px')
+  console.log('PASS no-cost returning registration without SMS')
+ }finally{await page.close()}
+}
+
 async function pendingPass(browser){
  const page=await browser.newPage({viewport:{width:390,height:800},isMobile:true,hasTouch:true})
  try{
@@ -109,6 +140,7 @@ async function pendingPass(browser){
  try{
   for(const w of [320,375,390,768,1280])await registration(browser,w)
   await returning(browser)
+  await returningFreeManual(browser)
   await pendingPass(browser)
   console.log('All isolated visitor browser checks passed')
  }finally{await browser.close()}
