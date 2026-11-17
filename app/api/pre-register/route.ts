@@ -1,8 +1,9 @@
 import { NextRequest,NextResponse } from 'next/server'
-import { randomBytes,randomUUID } from 'crypto'
+import { randomBytes,randomUUID,createHmac } from 'crypto'
 import { schoolDb,denyCrossOrigin,noStore,consentNotice,safeText,qrTokenPattern,resolveAuthorizedGuardian } from '@/lib/server/client-compliance-db'
 import { PHONE,PURPOSES,VISITOR_TYPES,requiresGuardianCheck,validDate,parsePhoto,UUID } from '@/lib/client-compliance'
 import { consumeRateLimit } from '@/lib/server/rate-limit'
+import { smsGatewayConfigured } from '@/lib/server/sms-gateway'
 
 export const dynamic='force-dynamic'
 
@@ -46,6 +47,13 @@ export async function POST(req:NextRequest){
       return NextResponse.json({error:'Complete all required registration information'},{status:400})
     const detail=purpose==='Other'?safeText(purposeOther,3,180):purpose
     if(!detail)return NextResponse.json({error:'Please specify your purpose of visit'},{status:400})
+    // The browser cannot bypass mandatory phone verification.
+    const verificationToken=body.verificationToken
+    if(typeof verificationToken!=='string'||!/^[a-f0-9]{64}$/.test(verificationToken))
+      return NextResponse.json({error:'Verify your mobile number by SMS before registering.'},{status:403,headers:noStore})
+    const otpSecret=process.env.BA_OTP_HMAC_SECRET||''
+    if(!smsGatewayConfigured()||otpSecret.length<32)
+      return NextResponse.json({error:'School SMS verification is unavailable. Contact school security.'},{status:503,headers:noStore})
     const photo=parsePhoto(body.facePhoto)
     if(!photo)return NextResponse.json({error:'A valid face JPEG is required'},{status:400})
     const guardianVisit=requiresGuardianCheck(visitorType,purpose)
@@ -90,6 +98,15 @@ export async function POST(req:NextRequest){
       guardianId=result.guardianId
       studentId=result.studentId
     }
+    // Bind the verified SMS to this number; atomic use prevents replay/races.
+    // We consume only after checking form, guardian, destination and abuse limits.
+    const proofHash=createHmac('sha256',otpSecret).update('proof|'+verificationToken).digest('hex')
+    const phoneHash=createHmac('sha256',otpSecret).update('phone|'+contactNumber).digest('hex')
+    const {data:proofValid,error:proofError}=await db.rpc('consume_phone_verification',{
+      p_proof_hash:proofHash,p_phone_hash:phoneHash
+    })
+    if(proofError)return NextResponse.json({error:'Phone verification service unavailable. Contact the school.'},{status:503,headers:noStore})
+    if(proofValid!==true)return NextResponse.json({error:'Phone verification expired, mismatched, or already used. Request a new SMS code.'},{status:403,headers:noStore})
     const id=randomUUID(),token=randomBytes(16).toString('hex')
     const referenceNumber='B'+randomBytes(4).toString('hex').toUpperCase()
     const photoPath='pre-register/'+id+'/'+randomBytes(8).toString('hex')+'.jpg'

@@ -9,16 +9,18 @@
  */
 export function smsGatewayConfigured(): boolean {
   const apiKey=process.env.TEXTBEE_API_KEY||''
+  const deviceId=process.env.TEXTBEE_DEVICE_ID?.trim()||''
   return process.env.BA_FREE_SMS_ONLY==='true' &&
     process.env.BA_SMS_CARRIER_INCLUDED==='true' &&
-    apiKey.length>=24
+    apiKey.length>=24 &&
+    /^[a-zA-Z0-9_-]{8,64}$/.test(deviceId)
 }
 
 export async function sendReturningOtp(phone:string,code:string): Promise<boolean> {
   if(!smsGatewayConfigured()||!/^09\d{9}$/.test(phone)||!/^\d{6}$/.test(code))return false
   const apiKey=process.env.TEXTBEE_API_KEY as string
   const deviceId=process.env.TEXTBEE_DEVICE_ID?.trim()||''
-  if(deviceId && !/^[a-zA-Z0-9_-]{8,64}$/.test(deviceId))return false
+  if(!/^[a-zA-Z0-9_-]{8,64}$/.test(deviceId))return false
   try {
     const response=await fetch('https://api.textbee.dev/api/v1/gateway/send-sms',{
       method:'POST',
