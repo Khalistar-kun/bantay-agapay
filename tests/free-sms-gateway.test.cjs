@@ -18,7 +18,8 @@ function gateway(env,fetchFn=async()=>{throw Error('Never called')}){
 const freeConfig={
  TEXTBEE_API_KEY:'test-key-with-more-than-twenty-four-characters',
  BA_FREE_SMS_ONLY:'true',
- BA_SMS_CARRIER_INCLUDED:'true'
+ BA_SMS_CARRIER_INCLUDED:'true',
+ TEXTBEE_DEVICE_ID:'fictionalDevice123'
 }
 test('default mode requires no SMS provider and never sends anything',async()=>{
  const x=gateway({})
@@ -42,6 +43,7 @@ test('the only supported SMS API endpoint is textbee Free provider',async()=>{
  assert.equal(await x.gateway.sendReturningOtp('09170000000','123456'),true)
  assert.equal(args.url,'https://api.textbee.dev/api/v1/gateway/send-sms')
  assert.equal(args.init.headers['x-api-key'],freeConfig.TEXTBEE_API_KEY)
+ assert.equal(JSON.parse(args.init.body).deviceId,freeConfig.TEXTBEE_DEVICE_ID)
  assert.deepEqual(JSON.parse(args.init.body).recipients,['+639170000000'])
  assert.ok(!('Authorization' in args.init.headers))
  assert.equal(x.calls(),1)
@@ -65,4 +67,11 @@ test('paid custom SMS gateway configuration is ignored',async()=>{
  assert.equal(x.gateway.smsGatewayConfigured(),false)
  assert.equal(x.calls(),0)
  assert.doesNotMatch(source,/process\.env\.BA_SMS_GATEWAY_URL/)
+})
+
+test('missing Android device ID blocks SMS without any paid fallback',async()=>{
+ const x=gateway({...freeConfig,TEXTBEE_DEVICE_ID:''})
+ assert.equal(x.gateway.smsGatewayConfigured(),false)
+ assert.equal(await x.gateway.sendReturningOtp('09170000000','123456'),false)
+ assert.equal(x.calls(),0)
 })
