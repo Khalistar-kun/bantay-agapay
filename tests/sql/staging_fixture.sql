@@ -48,3 +48,16 @@ CREATE TABLE public.audit_logs (
   metadata jsonb,
   created_at timestamptz DEFAULT now()
 );
+
+-- Model the legacy public access surface that migration 09 must lock down.
+-- These functions are non-data-returning stubs for checking privileges only.
+ALTER TABLE public.visits ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_public_visit_status" ON public.visits FOR SELECT USING (true);
+GRANT SELECT, INSERT ON public.visits TO anon, authenticated;
+GRANT SELECT, INSERT ON public.visitors TO anon, authenticated;
+CREATE FUNCTION public.get_pending_visitors() RETURNS integer LANGUAGE sql AS $$ SELECT 0; $$;
+CREATE FUNCTION public.get_visit_detail(uuid) RETURNS integer LANGUAGE sql AS $$ SELECT 0; $$;
+CREATE FUNCTION public.get_visit_status(varchar) RETURNS integer LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$ SELECT 0; $$;
+CREATE FUNCTION public.get_visit_directions(varchar) RETURNS integer LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$ SELECT 0; $$;
+GRANT EXECUTE ON FUNCTION public.get_pending_visitors(),public.get_visit_detail(uuid),
+  public.get_visit_status(varchar),public.get_visit_directions(varchar) TO anon,authenticated;

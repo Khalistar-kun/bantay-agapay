@@ -132,6 +132,22 @@ BEGIN
     RAISE EXCEPTION 'Third request improperly bypassed rate limit';
   END IF;
 
+  -- Migration 09 removes direct anonymous access to bearer QR tokens.
+  IF has_table_privilege('anon','public.visits','SELECT')
+    OR has_table_privilege('anon','public.visitors','SELECT')
+    OR has_function_privilege('anon','public.get_pending_visitors()','EXECUTE')
+    OR has_function_privilege('anon','public.get_visit_detail(uuid)','EXECUTE') THEN
+    RAISE EXCEPTION 'Legacy public visitor enumeration survived migration 09';
+  END IF;
+  IF NOT has_function_privilege('anon','public.get_visit_status(varchar)','EXECUTE')
+    OR NOT has_function_privilege('anon','public.get_visit_directions(varchar)','EXECUTE') THEN
+    RAISE EXCEPTION 'Bearer QR status/directions RPC permissions were revoked unexpectedly';
+  END IF;
+  IF NOT has_function_privilege('service_role','public.get_pending_visitors()','EXECUTE')
+    OR NOT has_function_privilege('service_role','public.get_visit_detail(uuid)','EXECUTE') THEN
+    RAISE EXCEPTION 'Staff service-role RPC permissions missing';
+  END IF;
+
   IF has_table_privilege('anon','public.students','SELECT')
      OR has_table_privilege('anon','public.pre_registrations','SELECT')
      OR has_table_privilege('anon','public.returning_otp_challenges','SELECT') THEN
