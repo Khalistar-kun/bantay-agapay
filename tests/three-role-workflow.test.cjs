@@ -111,3 +111,20 @@ test('admin configuration readiness remains private and does not claim provider 
   assert.match(code,/NOT SMS delivery tests/)
   assert.doesNotMatch(code,/process\.env\[key\]\s*\)/)
 })
+
+test('legacy visit location is opt-in only and visitors can stop sharing',()=>{
+  const code=read('app/visit/status/[token]/page.tsx')
+  assert.match(code,/const \[shareLocation,setShareLocation\]=useState\(false\)/)
+  assert.match(code,/visitStatus\?\.status !== "INSIDE" \|\| !shareLocation/)
+  assert.match(code,/Stop sharing my location/)
+  assert.match(code,/Share my location with security/)
+  assert.match(code,/10[0]{3}\)/)
+})
+test('gate pending queue excludes expired QR passes and displays fetch failures',()=>{
+  const api=read('app/api/security/gate/route.ts')
+  const ui=read('app/security/gate/page.tsx')
+  assert.match(api,/\.gte\('expires_at',new Date\(\)\.toISOString\(\)\)/)
+  assert.match(ui,/setPendingError/)
+  assert.match(ui,/Search pending visitors/)
+  assert.match(ui,/Last updated/)
+})
