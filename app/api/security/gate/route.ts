@@ -15,6 +15,7 @@ export async function GET(req:NextRequest){
       const {data,error}=await db.from('pre_registrations')
         .select('id,reference_number,full_name,visitor_type,purpose,status,submitted_at,expires_at,guardian_details_status,photo_review_status,biometric_status,biometric_confidence,destinations(name)')
         .in('status',['PRE_REGISTERED','NEEDS_REVIEW'])
+        .gte('expires_at',new Date().toISOString())
         .order('submitted_at',{ascending:false}).limit(100)
       if(error)throw error
       return NextResponse.json({registrations:data||[]},{headers:noStore})
