@@ -87,6 +87,17 @@ export async function GET() {
       guardianRegistry: checks[2].error ? "unavailable" : "connected",
       phoneVerificationProofs: checks[3].error ? "unavailable" : "connected",
     }
+    // Configuration is not "ready" if a required migrated table cannot be queried.
+    if(checks[0].error)result.readiness.registration.missing.push("destinations table")
+    if(checks[1].error)result.readiness.registration.missing.push("auth_rate_limits table (migration 10)")
+    if(checks[3].error)result.readiness.registration.missing.push("visitor_phone_verifications table (migration 13)")
+    result.readiness.registration.configured =
+      result.readiness.registration.configured &&
+      !checks[0].error&&!checks[1].error&&!checks[3].error
+    if(checks[2].error){
+      result.readiness.guardianFaceComparison.missing.push("authorized_guardians table")
+      result.readiness.guardianFaceComparison.configured=false
+    }
     result.status = checks.every(x => !x.error) ? "connected" : "unavailable"
     result.database = result.checks.connectivity
     return NextResponse.json(result, { status: result.status === "connected" ? 200 : 503, headers })
