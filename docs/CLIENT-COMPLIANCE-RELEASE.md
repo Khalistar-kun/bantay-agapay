@@ -82,3 +82,17 @@ Do **not** set `BA_SMS_CARRIER_INCLUDED` without checking the SIM plan and its f
 If the phone, SIM, free tier, or internet connection is unavailable, visitors still register
 normally with a new face capture and QR; guards perform identity and guardian validation at gate.
 The previous generic paid external SMS gateway configuration is not used by the adapter.
+
+
+## Required OTP for ALL visitors — isolated development release gate
+The former optional returning-visitor SMS/no-SMS fallback described above has been superseded **in this development branch only**. No production environment variables, Supabase production schema, or Vercel production deployment are changed by this development work.
+
+- Every new and returning visitor must verify their Philippine mobile number by SMS before face capture and QR pre-registration.
+- Six-digit codes expire after five minutes. Successful verification creates a 10-minute bearer proof (only a salted HMAC is stored), tied to the entered number and consumed atomically once.
+- `supabase/migrations/13_required_visitor_phone_otp.sql` adds the private proof table and single-use service-role RPC. It is not part of migrations 09–12 and must first be applied on isolated staging.
+- Public API `/api/pre-register` rejects no proof, wrong number, expired proof and replay; the retired legacy registration routes remain blocked.
+- SMS uses the fixed TextBee free Android gateway only. Required **staging-only** configuration: `TEXTBEE_API_KEY`, `TEXTBEE_DEVICE_ID`, `BA_OTP_HMAC_SECRET`, `BA_RATE_LIMIT_SECRET`, `BA_FREE_SMS_ONLY=true`, `BA_SMS_CARRIER_INCLUDED=true` after school SIM-allowance verification.
+- No paid fallback and no auto-upgrade. When the gateway, SIM or free quota is unavailable, online self-registration fails closed. A separate assisted process would require school approval before release.
+- SMS and enrollment data are not sent to real numbers in CI; tests use mocked browser APIs and disposable PostgreSQL, including token replay/expiry/phone-binding tests.
+- Phone verification **does not** establish legal guardian status, facial identity, liveness, child release authorization, or campus entry. Those safeguards remain independent.
+- Previously shared TextBee credentials must be rotated before live enablement. Conduct school privacy review, real-device delivery, carrier billing and acceptance tests before deployment.
