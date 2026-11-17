@@ -48,6 +48,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
+    const staff = await verifyStaff()
+    if (!staff || staff.role !== "ADMIN") return NextResponse.json({error:"Administrator access required"},{status:403})
     const { data, error } = await supabase.from("system_settings").select("*")
 
     if (error) {

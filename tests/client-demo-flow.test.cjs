@@ -71,7 +71,7 @@ function harness(connected) {
   const ctx={
     document:fakeDocument,
     localStorage:storage(store),sessionStorage:storage(session),
-    location:{protocol:connected?'https:':'file:',pathname:'/client-demo/index.html'},
+    location:{protocol:connected?'https:':'file:',pathname:'/client-demo/index.html',assign(url){db.redirect=url}},
     window:{addEventListener(){},scrollTo(){}},
     FormData:fakeFormData,
     navigator:{geolocation:{getCurrentPosition(onSuccess){onSuccess({coords:{latitude:14.737,longitude:120.9728,accuracy:18}})}}},
@@ -131,39 +131,9 @@ test('offline visitor registration, staff QR approval and same-QR checkout',asyn
   await h.click('restore-pass')
   assert.match(h.app.innerHTML,/Checked out/)
 })
-test('connected client uses only mocked APIs and completes approval and checkout',async()=>{
-  const h=harness(true)
-  await h.click('begin')
-  await h.submit('visitor-form',form)
-  await h.change('face-upload',[{type:'image/jpeg'}])
-  assert.match(h.app.innerHTML,/Photo ready/)
-  await h.click('go-gps')
-  assert.match(h.app.innerHTML,/Campus location check/)
-  await h.click('gps-check')
-  assert.match(h.app.innerHTML,/inside the authorized check-in area/)
-  await h.click('submit-visit')
-  assert.match(h.app.innerHTML,/Awaiting approval/)
-  await h.click('home')
-  await h.click('go-staff')
-  await h.submit('staff-login',{user:'09170000001',password:'fictional-secret'})
-  await h.submit('qr-lookup',{token})
-  assert.match(h.app.innerHTML,/Approve entry/)
-  await h.click('approve')
-  assert.equal(h.db.status,'INSIDE')
-  await h.click('home')
-  await h.click('restore-pass')
-  await h.click('refresh-pass')
-  assert.match(h.app.innerHTML,/Checked in/)
-  await h.click('home')
-  await h.click('go-staff')
-  await h.submit('staff-login',{user:'09170000001',password:'fictional-secret'})
-  await h.submit('qr-lookup',{token})
-  await h.click('checkout')
-  assert.equal(h.db.status,'EXITED')
-  await h.click('home')
-  await h.click('restore-pass')
-  await h.click('refresh-pass')
-  assert.match(h.app.innerHTML,/Checked out/)
-  assert.ok(h.db.calls.some(([verb,url])=>verb==='POST'&&url==='/api/client-demo'))
-  assert.ok(!h.db.calls.some(([verb,url])=>url==='/api/visit/submit'),'Legacy registration should not be called')
-})
+test('connected homepage sends visitors to the secure pre-registration flow',async()=>{
+ const h=harness(true)
+ await h.click('begin')
+ assert.equal(h.db.redirect,'/pre-register')
+ assert.equal(h.db.calls.filter(([method,path])=>method==='POST'&&path==='/api/client-demo').length,0)
+});

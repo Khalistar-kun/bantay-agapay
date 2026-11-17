@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     // Conditional update also guards against two simultaneous scans.
     const { data: updated, error } = await supabase.from("visits")
-      .update({ status: "EXITED", check_out: new Date().toISOString() })
+      .update({ status: "EXITED", check_out: new Date().toISOString(), checked_out_by: staff.profileId })
       .eq("id", visit.id)
       .eq("status", "INSIDE")
       .select("id")

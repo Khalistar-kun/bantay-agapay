@@ -18,7 +18,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, phone_number, role, active, status, created_at, photo_path")
+    .select("id, full_name, phone_number, position, role, active, status, created_at, photo_path")
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { fullName, phoneNumber, password, role } = await request.json()
+  const { fullName, phoneNumber, password, role, position } = await request.json()
 
   if (!fullName || !phoneNumber || !password || !role) {
     return NextResponse.json({ error: "All fields are required" }, { status: 400 })
@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
 
   const { error } = await supabase.from("profiles").insert({
     full_name: fullName,
+    position: role === "ADMIN" && typeof position === "string" ? position.slice(0,120) : null,
     phone_number: normalized,
     password_hash: passwordHash,
     role,
@@ -90,7 +91,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { profileId, role, active, status } = await request.json()
+  const { profileId, role, active, status, position } = await request.json()
 
   if (!profileId) {
     return NextResponse.json({ error: "Missing profileId" }, { status: 400 })
@@ -108,6 +109,7 @@ export async function PATCH(request: NextRequest) {
   if (role !== undefined) update.role = role
   if (active !== undefined) update.active = active
   if (status !== undefined) update.status = status
+  if (position !== undefined && typeof position === "string" && position.length <= 120) update.position = position.trim()
 
   const { error } = await supabase.from("profiles").update(update).eq("id", profileId)
 

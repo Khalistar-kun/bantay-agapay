@@ -122,6 +122,19 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Link href="/admin/registry" className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Student & Guardian Registry</h3>
+            <p className="text-gray-600 text-sm">Verify authorized contacts before student-related visits</p>
+          </Link>
+          <Link href="/admin/reports" className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Reports & Cases</h3>
+            <p className="text-gray-600 text-sm">School entry trends, visit logs and incident reports</p>
+          </Link>
+          <Link href="/security/gate" className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Gate Operations</h3>
+            <p className="text-gray-600 text-sm">Help guards with secure QR verification</p>
+          </Link>
+
           <Link href="/admin/visitors" className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Visitor Records</h3>
             <p className="text-gray-600 text-sm">Search and view visitor history</p>

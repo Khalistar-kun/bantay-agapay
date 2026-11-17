@@ -25,6 +25,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid visit ID" }, { status: 400 })
     }
 
+    // Legacy visits must not bypass the guardian registry and pre-registration gate.
+    const {data:legacy,error:legacyError}=await supabase.from("visits")
+      .select("id,pre_registration_id,purpose,visitors(visitor_type)").eq("id",visitId).maybeSingle()
+    if(legacyError||!legacy)return NextResponse.json({error:"Visit not found"},{status:404})
+    const visitor=legacy.visitors as unknown as {visitor_type:string}|null
+    if((legacy.purpose==="Child Emergency"||legacy.purpose==="Visit Student") &&
+      !legacy.pre_registration_id){
+      return NextResponse.json({error:"Guardian access requires the authorized gate-verification workflow"},{status:403})
+    }
     // Never accept a replacement public QR token from an approval request.
     // A conditional update prevents APPROVED, EXITED or DENIED visits being reopened.
     const now = new Date().toISOString()

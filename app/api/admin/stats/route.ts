@@ -10,25 +10,22 @@ const supabase = createClient(
 export async function GET() {
   const staff = await verifyStaff()
 
-  if (!staff) {
+  if (!staff || staff.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const startOfDay = new Date()
-  startOfDay.setHours(0, 0, 0, 0)
-
-  const [todayVisitorsRes, currentlyInsideRes, pendingApprovalRes, completedTodayRes] = await Promise.all([
-    supabase
-      .from("visits")
-      .select("id", { count: "exact", head: true })
-      .gte("registration_time", startOfDay.toISOString()),
-    supabase.from("visits").select("id", { count: "exact", head: true }).eq("status", "INSIDE"),
-    supabase.from("visits").select("id", { count: "exact", head: true }).eq("status", "PENDING"),
-    supabase
-      .from("visits")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "EXITED")
-      .gte("check_out", startOfDay.toISOString()),
+  // Philippine local midnight (Asia/Manila, UTC+08:00) for school daily statistics.
+  const todayPH = new Date(Date.now() + 8*60*60*1000).toISOString().slice(0,10)
+  const startOfDay = todayPH+"T00:00:00+08:00"
+  const [todayVisitorsRes,currentlyInsideRes,pendingApprovalRes,completedTodayRes,
+    preregTodayRes,entryTodayRes,reviewRes] = await Promise.all([
+    supabase.from("visits").select("id",{count:"exact",head:true}).gte("registration_time",startOfDay),
+    supabase.from("visits").select("id",{count:"exact",head:true}).eq("status","INSIDE"),
+    supabase.from("visits").select("id",{count:"exact",head:true}).eq("status","PENDING"),
+    supabase.from("visits").select("id",{count:"exact",head:true}).eq("status","EXITED").gte("check_out",startOfDay),
+    supabase.from("pre_registrations").select("id",{count:"exact",head:true}).gte("submitted_at",startOfDay),
+    supabase.from("visits").select("id",{count:"exact",head:true}).gte("check_in",startOfDay),
+    supabase.from("security_incidents").select("id",{count:"exact",head:true}).eq("status","OPEN"),
   ])
 
   return NextResponse.json({
@@ -36,5 +33,8 @@ export async function GET() {
     currentlyInside: currentlyInsideRes.count ?? 0,
     pendingApproval: pendingApprovalRes.count ?? 0,
     completedToday: completedTodayRes.count ?? 0,
+    preRegisteredToday: preregTodayRes.count ?? 0,
+    entriesToday: entryTodayRes.count ?? 0,
+    openCases: reviewRes.count ?? 0,
   })
 }

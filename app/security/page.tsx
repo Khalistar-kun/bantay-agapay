@@ -96,6 +96,7 @@ export default function SecurityDashboard() {
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay</h1>
             <div className="flex items-center gap-4">
+              <Link href="/security/gate" className="text-primary-700 font-bold hover:underline">Scan & Verify QR</Link>
               <Link href="/security/inside" className="text-gray-600 hover:text-gray-900">
                 Currently Inside
               </Link>
@@ -132,6 +133,11 @@ export default function SecurityDashboard() {
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-5 rounded-xl border border-[#d5bec5] bg-[#fff3f5] p-4 text-sm">
+          <strong>Client-compliant gate workflow:</strong> For home pre-registrations and guardian/student validation,
+          open <Link href="/security/gate" className="font-bold text-[#82172a] underline">QR Scanner & Verification</Link>.
+          A QR is not authorization until the guard approves entry.
+        </div>
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Pending Visitors</h2>
           <p className="text-gray-600">Review and approve visitor registrations</p>
