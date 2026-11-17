@@ -128,7 +128,7 @@ export default function SecurityOperationsDashboard(){
    <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
     <Link href="/security/history" className="rounded-xl border border-rose-100 bg-white p-4 text-center text-sm font-bold text-[#82172a]">Entry & Exit Logs →</Link>
     <Link href="/security/incidents" className="rounded-xl border border-rose-100 bg-white p-4 text-center text-sm font-bold text-[#82172a]">Security Alerts ({incidents.length}) →</Link>
-    <Link href="/security/gate" className="rounded-xl border border-rose-100 bg-white p-4 text-center text-sm font-bold text-[#82172a]">Visitor QR & Destination Assistance →</Link>
+    <Link href="/security/wayfinding" className="rounded-xl border border-rose-100 bg-white p-4 text-center text-sm font-bold text-[#82172a]">Approved Campus Map & Faculty Routes →</Link>
    </section>
    <p className="text-center text-xs text-gray-500">
     QR entry approval never authorizes a child's departure. Follow the school's separate student release policy.
