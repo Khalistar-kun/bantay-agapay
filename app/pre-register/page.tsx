@@ -29,6 +29,7 @@ export default function PreRegisterPage(){
   const [otpCode,setOtpCode]=useState("")
   const [otpMessage,setOtpMessage]=useState("")
   const [otpVerified,setOtpVerified]=useState(false)
+  const [verificationToken,setVerificationToken]=useState("")
   const [freeSmsAvailable,setFreeSmsAvailable]=useState(false)
   const [destinations,setDestinations]=useState<Destination[]>([])
   const [filter,setFilter]=useState("")
@@ -60,7 +61,7 @@ export default function PreRegisterPage(){
   },[])
   function update<K extends keyof FormData>(key:K,value:FormData[K]){
     setForm(f=>({...f,[key]:value}))
-    if(key==="contactNumber"){setOtpVerified(false);setOtpMessage("");setOtpCode("")}
+    if(key==="contactNumber"){setOtpVerified(false);setVerificationToken("");setOtpMessage("");setOtpCode("")}
     setError("")
   }
   async function returningOtp(action:"request"|"verify"){
@@ -75,8 +76,9 @@ export default function PreRegisterPage(){
       })
       const data=await res.json()
       if(!res.ok)throw Error(data.error||"SMS verification unavailable")
-      if(action==="verify"&&data.verified===true){
-        if(data.profile?.fullName && VISITOR_TYPES.includes(data.profile.visitorType)){
+      if(action==="verify"&&data.verified===true&&typeof data.verificationToken==="string"&&/^[a-f0-9]{64}$/.test(data.verificationToken)){
+        setVerificationToken(data.verificationToken)
+        if(returning&&data.profile?.fullName && VISITOR_TYPES.includes(data.profile.visitorType)){
           setForm(f=>({...f,fullName:data.profile.fullName,visitorType:data.profile.visitorType}))
         }
         setOtpVerified(true)
@@ -99,6 +101,7 @@ export default function PreRegisterPage(){
       setError("For a child-related visit, complete your birthday, address, student name, grade, and section.");return
     }
     if(!consent){setError("Read and accept the privacy acknowledgement.");return}
+    if(!otpVerified||!verificationToken){setError("Verify your mobile number by SMS before proceeding to face verification.");return}
     setStep(1)
     setError("")
   }
@@ -108,10 +111,13 @@ export default function PreRegisterPage(){
     try{
       const result=await fetch("/api/pre-register",{
         method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({...form,facePhoto:photo,privacyConsent:consent})
+        body:JSON.stringify({...form,facePhoto:photo,privacyConsent:consent,verificationToken})
       })
       const data=await result.json()
-      if(!result.ok)throw Error(data.error||"Could not save your pre-registration")
+      if(!result.ok){
+        if(result.status===403){setOtpVerified(false);setVerificationToken("");setOtpCode("");setStep(0)}
+        throw Error(data.error||"Could not save your pre-registration")
+      }
       setToken(data.token)
       setStep(2)
       router.push("/pass/"+encodeURIComponent(data.token))
@@ -144,38 +150,6 @@ export default function PreRegisterPage(){
         {step===0&&<form onSubmit={next} className="space-y-5">
           <div><h2 className="text-xl font-bold">Step 1 · Your Personal Information</h2>
             <p className="mt-1 text-sm text-gray-600">Required fields help school security process your visit without unnecessary delays.</p></div>
-          {returning&&<section className="min-w-0 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <h3 className="text-sm font-bold text-[#82172a]">Returning Visitor · Free Registration</h3>
-            <p className="text-xs leading-relaxed text-amber-950">
-              You do not need an SMS code or mobile load to register. Enter your information below,
-              capture a fresh face photo, and save the QR for gate verification.
-              Your details will be checked by school security before entry.
-            </p>
-            {freeSmsAvailable&&<div className="space-y-2 border-t border-amber-200 pt-3">
-              <p className="text-xs text-amber-950">Optional: The school's Android SIM provides SMS verification under its existing texting plan.
-                This can prefill your name and visitor type. Student records and old face photos remain protected.</p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                <input className={input} aria-label="One-time SMS code" inputMode="numeric"
-                  autoComplete="one-time-code" maxLength={6} value={otpCode}
-                  onChange={e=>{setOtpCode(e.target.value.replace(/\D/g,""));setOtpMessage("")}}
-                  placeholder="Six-digit SMS code"/>
-                <button type="button" disabled={otpBusy||otpVerified} onClick={()=>void returningOtp("request")}
-                  className="rounded-xl border border-[#82172a] px-4 py-3 text-sm font-semibold text-[#82172a]">
-                  {otpBusy?"Processing…":"Send Free SMS Code"}
-                </button>
-              </div>
-              <button type="button" disabled={otpBusy||otpVerified||otpCode.length!==6}
-                onClick={()=>void returningOtp("verify")}
-                className="w-full rounded-xl bg-[#82172a] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
-                Verify Code & Prefill Information
-              </button>
-              {otpMessage&&<p role="status" className="rounded-lg bg-white p-3 text-xs text-[#53323b]">{otpMessage}</p>}
-              {otpVerified&&<p className="text-xs font-bold text-emerald-800">Mobile number verified. Complete a fresh face scan and obtain gate approval.</p>}
-            </div>}
-            {!freeSmsAvailable&&<p className="rounded-lg bg-white p-3 text-xs text-amber-950">
-              No SMS needed — complete the form to continue. No paid SMS gateway is required.
-            </p>}
-          </section>}
           <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="min-w-0 text-sm font-semibold">Full Legal Name *
               <input required autoComplete="name" maxLength={200} className={input+" mt-1"} value={form.fullName} onChange={e=>update("fullName",e.target.value)} placeholder="First Middle Last" />
@@ -193,6 +167,31 @@ export default function PreRegisterPage(){
               <textarea maxLength={180} rows={2} className={input+" mt-1"} value={form.purposeOther} onChange={e=>update("purposeOther",e.target.value)} />
             </label>}
           </div>
+          <section className="min-w-0 space-y-3 rounded-xl border border-[#ddc3ca] bg-[#fff8f9] p-4" aria-label="Required phone verification">
+            <h3 className="text-sm font-bold text-[#82172a]">Required · Verify Your Mobile Number</h3>
+            <p className="text-xs leading-relaxed text-[#714358]">New and returning visitors must confirm the mobile number entered above. SMS codes expire after five minutes. Verify before face capture or receiving a QR pass.</p>
+            {!freeSmsAvailable&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-900">
+              Free SMS verification is unavailable. Online registration is paused; contact school security. There is no paid SMS fallback.
+            </p>}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <input className={input} aria-label="One-time SMS code" inputMode="numeric"
+                autoComplete="one-time-code" maxLength={6} value={otpCode}
+                onChange={e=>{setOtpCode(e.target.value.replace(/\D/g,""));setOtpMessage("")}}
+                disabled={!freeSmsAvailable||otpVerified} placeholder="Six-digit SMS code"/>
+              <button type="button" disabled={!freeSmsAvailable||otpBusy||otpVerified||!/^09\d{9}$/.test(form.contactNumber)}
+                onClick={()=>void returningOtp("request")}
+                className="rounded-xl border border-[#82172a] px-4 py-3 text-sm font-semibold text-[#82172a] disabled:opacity-40">
+                {otpBusy?"Processing…":"Send Free SMS Code"}
+              </button>
+            </div>
+            <button type="button" disabled={!freeSmsAvailable||otpBusy||otpVerified||otpCode.length!==6}
+              onClick={()=>void returningOtp("verify")}
+              className="w-full rounded-xl bg-[#82172a] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
+              Verify SMS Code
+            </button>
+            {otpMessage&&<p role="status" className="rounded-lg bg-white p-3 text-xs text-[#53323b]">{otpMessage}</p>}
+            {otpVerified&&<p role="status" className="text-xs font-bold text-emerald-800">Mobile number verified. Complete registration within ten minutes. Identity still requires school security review.</p>}
+          </section>
           {childVisit&&<fieldset className="min-w-0 space-y-3 rounded-xl border border-[#ddc3ca] bg-[#fff8f9] p-4">
             <legend className="px-2 text-sm font-bold text-[#82172a]">Guardian and Student Verification</legend>
             <p className="text-xs text-[#714358]">Information is checked against records enrolled by the school. A mismatch prevents ordinary gate approval.</p>
@@ -234,7 +233,7 @@ export default function PreRegisterPage(){
             <span>I acknowledge that the school will securely process my registration details and photograph for campus access control, identity review and visit records. Entry is subject to security approval.</span>
           </label>
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <button className={button} type="submit">Continue to Face Verification →</button>
+            <button className={button} type="submit" disabled={!freeSmsAvailable||!otpVerified||!verificationToken}>Continue to Face Verification →</button>
           </div>
         </form>}
         {step===1&&<div className="space-y-4">
