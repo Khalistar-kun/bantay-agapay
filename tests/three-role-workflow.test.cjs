@@ -128,3 +128,15 @@ test('gate pending queue excludes expired QR passes and displays fetch failures'
   assert.match(ui,/Search pending visitors/)
   assert.match(ui,/Last updated/)
 })
+
+test('security personnel map is read-only and only draws published routes',()=>{
+  const api=read('app/api/security/wayfinding/route.ts')
+  const page=read('app/security/wayfinding/page.tsx')
+  const dash=read('app/security/page.tsx')
+  assert.match(api,/requireStaff\(\)/)
+  assert.match(api,/availableRoute\(/)
+  assert.doesNotMatch(api,/export async function (POST|PATCH|PUT|DELETE)/)
+  assert.match(page,/No published walking path/)
+  assert.match(page,/Open QR & Identity Verification/)
+  assert.match(dash,/href="\/security\/wayfinding"/)
+})
