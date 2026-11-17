@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { ProfilePhotoPrompt } from "@/components/staff/ProfilePhotoPrompt"
 
 type Me={fullName:string|null;hasPhoto:boolean;photoUrl:string|null}
-type Pending={id:string;reference_number:string;full_name:string;purpose:string;destination_name:string;registration_time:string}
 type Pre={id:string;reference_number:string;full_name:string;purpose:string;status:string;submitted_at:string;guardian_details_status:string}
 type Visit={id:string;full_name:string;reference_number:string;destination_name:string;check_in:string}
 type Incident={id:string;category:string;details:string|null;status:string;created_at:string}
@@ -15,7 +14,7 @@ export default function SecurityOperationsDashboard(){
  const router=useRouter()
  const [me,setMe]=useState<Me|null>(null)
  const [photoPrompt,setPhotoPrompt]=useState(false)
- const [legacy,setLegacy]=useState<Pending[]>([])
+ const [lastUpdated,setLastUpdated]=useState<string|null>(null)
  const [pre,setPre]=useState<Pre[]>([])
  const [inside,setInside]=useState<Visit[]>([])
  const [incidents,setIncidents]=useState<Incident[]>([])
@@ -23,14 +22,18 @@ export default function SecurityOperationsDashboard(){
  const [error,setError]=useState("")
  async function load(){
   try{
-   const [l,p,i,a]=await Promise.all([
-    fetch("/api/security/pending",{cache:"no-store"}),fetch("/api/security/gate?list=pending",{cache:"no-store"}),
-    fetch("/api/security/inside",{cache:"no-store"}),fetch("/api/security/incidents?status=OPEN",{cache:"no-store"})
+   // New entries use pre_registrations. Retired legacy pending RPC is not a
+   // prerequisite for gate operations: one missing legacy function must not
+   // hide the entire queue or current campus roster.
+   const [p,i,a]=await Promise.all([
+    fetch("/api/security/gate?list=pending",{cache:"no-store"}),
+    fetch("/api/security/inside",{cache:"no-store"}),
+    fetch("/api/security/incidents?status=OPEN",{cache:"no-store"})
    ])
-   const [lj,pj,ij,aj]=await Promise.all([l.json(),p.json(),i.json(),a.json()])
-   if([l,p,i,a].some(x=>!x.ok))throw Error(lj.error||pj.error||ij.error||aj.error||"Unable to load gate records")
-   setLegacy(lj.visitors||[]);setPre(pj.registrations||[]);setInside(ij.visitors||[]);setIncidents(aj.incidents||[])
-   setError("")
+   const [pj,ij,aj]=await Promise.all([p.json(),i.json(),a.json()])
+   if([p,i,a].some(x=>!x.ok))throw Error(pj.error||ij.error||aj.error||"Unable to load gate records")
+   setPre(pj.registrations||[]);setInside(ij.visitors||[]);setIncidents(aj.incidents||[])
+   setError("");setLastUpdated(new Date().toISOString())
   }catch(e){setError(e instanceof Error?e.message:"Security data unavailable")}
   finally{setLoading(false)}
  }
@@ -40,7 +43,6 @@ export default function SecurityOperationsDashboard(){
  const stats=[
   {label:"Pre-registrations",value:pre.length,detail:"Awaiting QR validation"},
   {label:"Inside Campus",value:inside.length,detail:"Checked in, not yet out"},
-  {label:"Legacy Pending",value:legacy.length,detail:"Existing visits awaiting review"},
   {label:"Open Alerts",value:incidents.length,detail:"Requires security follow-up"}
  ]
  return <main className="min-h-screen w-full min-w-0 overflow-x-clip bg-[#faf6f8] text-[#291b25]">
@@ -77,8 +79,13 @@ export default function SecurityOperationsDashboard(){
      </Link>
     </div>
    </section>
-   {error&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">{error}</p>}
-   <section aria-label="Gate operation counts" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+   {error&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">
+      {error} <button type="button" onClick={()=>void load()} className="ml-2 font-bold underline">Retry</button>
+    </p>}
+   {lastUpdated&&<p role="status" className="text-right text-xs text-gray-500">
+     Last synchronized: {new Date(lastUpdated).toLocaleTimeString("en-PH",{timeZone:"Asia/Manila"})} PH · Auto-refresh every 15 seconds
+   </p>}
+   <section aria-label="Gate operation counts" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
     {stats.map(x=><div key={x.label} className="min-w-0 rounded-xl border border-rose-100 bg-white p-4 shadow-sm">
       <p className="text-xs font-semibold text-[#6e515e]">{x.label}</p>
       <strong className="mt-2 block text-3xl font-extrabold text-[#82172a]">{loading?"—":x.value}</strong>
@@ -121,7 +128,7 @@ export default function SecurityOperationsDashboard(){
    <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
     <Link href="/security/history" className="rounded-xl border border-rose-100 bg-white p-4 text-center text-sm font-bold text-[#82172a]">Entry & Exit Logs →</Link>
     <Link href="/security/incidents" className="rounded-xl border border-rose-100 bg-white p-4 text-center text-sm font-bold text-[#82172a]">Security Alerts ({incidents.length}) →</Link>
-    <Link href="/admin/wayfinding" className="rounded-xl border border-rose-100 bg-white p-4 text-center text-sm font-bold text-[#82172a]">Campus & Faculty Map Assistance →</Link>
+    <Link href="/security/gate" className="rounded-xl border border-rose-100 bg-white p-4 text-center text-sm font-bold text-[#82172a]">Visitor QR & Destination Assistance →</Link>
    </section>
    <p className="text-center text-xs text-gray-500">
     QR entry approval never authorizes a child's departure. Follow the school's separate student release policy.
