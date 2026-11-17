@@ -5,6 +5,7 @@ import Link from "next/link"
 
 type State = "connected" | "unavailable" | "not_configured"
 type Health = { status: State; database: State; checks: Record<string, State>; checkedAt: string }
+type SmsHealth = { ready: boolean; destination: string | null; notice: string }
 
 const names: Record<string, string> = {
   connectivity: "Supabase database connection",
@@ -27,6 +28,11 @@ export default function DatabaseHealthPage() {
   const [data, setData] = useState<Health | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [sms, setSms] = useState<SmsHealth | null>(null)
+  const [smsLoading, setSmsLoading] = useState(true)
+  const [smsSending, setSmsSending] = useState(false)
+  const [smsNotice, setSmsNotice] = useState("")
+  const [smsError, setSmsError] = useState("")
   const refresh = useCallback(async () => {
     setLoading(true)
     setError("")
@@ -47,7 +53,37 @@ export default function DatabaseHealthPage() {
       setLoading(false)
     }
   }, [])
-  useEffect(() => { void refresh() }, [refresh])
+  const checkSms = useCallback(async () => {
+    setSmsLoading(true)
+    setSmsError("")
+    try {
+      const response = await fetch("/api/admin/health/sms", { credentials: "same-origin", cache: "no-store" })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || "SMS configuration unavailable")
+      setSms(body)
+    } catch (err) {
+      setSms(null)
+      setSmsError(err instanceof Error ? err.message : "Unable to check SMS configuration")
+    } finally { setSmsLoading(false) }
+  }, [])
+  async function sendTestSms() {
+    if (smsSending || !sms?.ready) return
+    setSmsSending(true)
+    setSmsNotice("")
+    setSmsError("")
+    try {
+      const response = await fetch("/api/admin/health/sms", {
+        method: "POST", credentials: "same-origin", cache: "no-store"
+      })
+      const body = await response.json()
+      if (!response.ok || body.queued !== true)
+        throw new Error(body.error || "Gateway did not queue the test SMS")
+      setSmsNotice(body.message || "Gateway accepted the test message; check the school test phone.")
+    } catch (err) {
+      setSmsError(err instanceof Error ? err.message : "SMS test was unsuccessful")
+    } finally { setSmsSending(false) }
+  }
+  useEffect(() => { void refresh(); void checkSms() }, [refresh, checkSms])
   return <main className="min-h-screen bg-[#faf6f8] px-4 py-8 text-[#2b1b26]">
     <div className="mx-auto max-w-3xl space-y-6">
       <div><Link href="/admin" className="text-sm font-semibold text-[#82172a]">← Administrator Dashboard</Link>
@@ -81,6 +117,45 @@ export default function DatabaseHealthPage() {
             Database tables are reachable. This does not test SMS delivery, rate-limit RPC execution, or real visitor transactions.
           </p>}
         </>}
+      </section>
+      <section className="rounded-2xl border border-[#eadde1] bg-white p-5 shadow-sm" aria-label="School test SMS">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold">Test SMS · TextBee</h2>
+            <p className="mt-1 text-sm text-gray-600">Administrator-only test to a school-approved handset. No visitor number or OTP is used.</p>
+          </div>
+          <button type="button" onClick={() => void checkSms()} disabled={smsLoading || smsSending}
+            className="rounded-full border border-[#82172a] px-4 py-2 text-sm font-semibold text-[#82172a] disabled:opacity-50">
+            {smsLoading ? "Checking…" : "Refresh SMS status"}
+          </button>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#faf6f8] p-4">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">Gateway test readiness</p>
+            <p className="text-xs text-gray-600">Recipient: {sms?.destination || "Not configured"}</p>
+          </div>
+          <span className={"rounded-full border px-3 py-1 text-xs font-bold " +
+            (sms?.ready ? "border-emerald-200 bg-emerald-50 text-emerald-800" :
+              "border-amber-200 bg-amber-50 text-amber-900")}>
+            {smsLoading ? "Checking" : sms?.ready ? "Ready for test" : "Unavailable"}
+          </span>
+        </div>
+        <p className="mt-3 text-xs text-gray-600">
+          A test sends one real SMS using the school's Android SIM and may consume carrier allowance.
+          Only the free TextBee gateway is supported. Queued does not mean delivered.
+          Limited to two attempts per administrator/IP per hour and five across the school per day.
+        </p>
+        <button type="button" onClick={() => void sendTestSms()}
+          disabled={!sms?.ready || smsLoading || smsSending}
+          className="mt-4 rounded-full bg-[#82172a] px-5 py-3 text-sm font-bold text-white disabled:opacity-50">
+          {smsSending ? "Requesting test SMS…" : "Send test SMS"}
+        </button>
+        {smsError && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-900">{smsError}</p>}
+        {smsNotice && <p role="status" className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">{smsNotice}</p>}
+        {!sms?.ready && !smsLoading && <p className="mt-3 text-xs text-gray-600">
+          Set BA_SMS_TEST_ENABLED=true and BA_SMS_TEST_PHONE to the school's approved test number,
+          alongside the existing free-only TextBee configuration. No message is sent until an administrator clicks.
+        </p>}
       </section>
     </div>
   </main>
