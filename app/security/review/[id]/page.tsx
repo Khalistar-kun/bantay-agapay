@@ -122,27 +122,6 @@ export default function SecurityReviewPage() {
     }
   }, [mapLoaded, verification])
 
-  const handleApprove = async () => {
-    setProcessing(true)
-    try {
-      const response = await fetch("/api/visit/approve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitId }),
-      })
-
-      if (response.ok) {
-        router.push("/security")
-      } else {
-        const data = await response.json().catch(() => ({}))
-        alert(data.error || "Failed to approve visitor")
-      }
-    } catch (err) {
-      alert("Error approving visitor. Please check your connection.")
-    } finally {
-      setProcessing(false)
-    }
-  }
 
   const handleDeny = async () => {
     if (!denyReason.trim()) {
@@ -288,13 +267,13 @@ export default function SecurityReviewPage() {
         <div className="bg-white rounded-lg shadow-md p-6 mt-8">
           {!showDenyForm ? (
             <div className="flex gap-4">
-              <button
-                onClick={handleApprove}
-                disabled={processing}
-                className="flex-1 bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition disabled:opacity-50"
-              >
-                {processing ? "Processing..." : "✓ Approve Entry"}
-              </button>
+              <div className="flex-1 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                <strong>Legacy entry approval retired.</strong>
+                <p className="mt-1">This visitor must complete the new identity-verified pre-registration.
+                  Ask them to visit <Link href="/pre-register" className="font-bold underline">secure registration</Link>,
+                  then scan their new pass at <Link href="/security/gate" className="font-bold underline">Gate Verification</Link>.
+                </p>
+              </div>
               <button
                 onClick={() => setShowDenyForm(true)}
                 disabled={processing}

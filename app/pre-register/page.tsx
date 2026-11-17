@@ -7,6 +7,7 @@ import { FaceDetection } from "@/components/visitor/FaceDetection"
 import { ageOn,requiresGuardianCheck,PURPOSES,VISITOR_TYPES } from "@/lib/client-compliance"
 
 type Destination={id:string;name:string;building?:string|null;room?:string|null}
+type Faculty={id:string;name:string;department:string;destinationId:string;destinationName:string;building:string}
 type FormData={
   fullName:string;contactNumber:string;visitorType:string;purpose:string;purposeOther:string;
   destinationId:string;birthDate:string;address:string;studentName:string;studentGrade:string;studentSection:string
@@ -26,6 +27,8 @@ export default function PreRegisterPage(){
   const [returning,setReturning]=useState(false)
   const [destinations,setDestinations]=useState<Destination[]>([])
   const [filter,setFilter]=useState("")
+  const [faculty,setFaculty]=useState<Faculty[]>([])
+  const [facultyFilter,setFacultyFilter]=useState("")
   const [loading,setLoading]=useState(false)
   const [error,setError]=useState("")
   const [consent,setConsent]=useState(false)
@@ -36,6 +39,11 @@ export default function PreRegisterPage(){
   const choices=destinations.filter(d=>((d.name+" "+(d.building||"")).toLowerCase()).includes(filter.toLowerCase()))
   useEffect(()=>{
     setReturning(new URLSearchParams(window.location.search).get("returning")==="1")
+    fetch("/api/faculty-directory",{cache:"no-store"}).then(async response=>{
+      const j=await response.json()
+      if(!response.ok)throw Error(j.error||"Faculty directory unavailable")
+      setFaculty(j.faculty||[])
+    }).catch(()=>setFaculty([]))
     fetch("/api/client-demo?action=destinations",{cache:"no-store"})
       .then(async r=>{const j=await r.json();if(!r.ok)throw Error(j.error||"Could not load campus destinations");return j})
       .then(j=>setDestinations(j.destinations||[]))
@@ -130,6 +138,21 @@ export default function PreRegisterPage(){
               <label className="text-sm font-semibold">Student Section *<input required className={input+" mt-1"} maxLength={100} value={form.studentSection} onChange={e=>update("studentSection",e.target.value)}/></label>
             </div>
           </fieldset>}
+          <div className="min-w-0 space-y-2">
+            <label className="block text-sm font-semibold" htmlFor="faculty-search">Looking for a teacher?</label>
+            <input id="faculty-search" className={input} value={facultyFilter}
+              onChange={e=>setFacultyFilter(e.target.value)} placeholder="Search teacher name (optional)"/>
+            {facultyFilter.trim().length>=2&&<div className="grid max-h-48 min-w-0 gap-1 overflow-y-auto rounded-xl border border-rose-200 p-2">
+              {faculty.filter(f=>f.name.toLowerCase().includes(facultyFilter.toLowerCase())).slice(0,12).map(f=>
+                <button key={f.id} type="button" className="min-w-0 rounded-lg bg-[#faf4f7] px-3 py-2.5 text-left text-sm hover:bg-[#f2e1e8]"
+                  onClick={()=>{update("destinationId",f.destinationId);setFacultyFilter(f.name);setFilter("")}}>
+                  <strong className="block break-words">{f.name}</strong>
+                  <span className="text-xs text-gray-600">{f.department} · {f.destinationName}</span>
+                </button>)}
+              {!faculty.some(f=>f.name.toLowerCase().includes(facultyFilter.toLowerCase()))&&
+                <p className="p-2 text-xs text-gray-600">No published teacher office found. Ask security for assistance.</p>}
+            </div>}
+          </div>
           <div className="min-w-0 space-y-2">
             <label className="block text-sm font-semibold" htmlFor="destination-search">Destination *</label>
             <input id="destination-search" className={input} value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Search faculty, teacher's office or building"/>

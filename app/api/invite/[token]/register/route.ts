@@ -16,8 +16,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "All fields are required" }, { status: 400 })
   }
 
-  if (password.length < 6) {
-    return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 })
+  if (password.length < 12) {
+    return NextResponse.json({ error: "Password must be at least 12 characters" }, { status: 400 })
   }
 
   const { data: invite, error: inviteError } = await supabase

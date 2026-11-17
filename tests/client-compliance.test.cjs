@@ -13,7 +13,7 @@ function moduleAt(file,stubs={}){
  }}).outputText
  const mod={exports:{}}
  const env={NEXT_PUBLIC_SUPABASE_URL:'https://fake.supabase.test',SUPABASE_SERVICE_ROLE_KEY:'fake-key'}
- vm.runInNewContext(js,{module:mod,exports:mod.exports,require:id=>stubs[id]||require(id),
+ vm.runInNewContext(js,{module:mod,exports:mod.exports,require:id=>stubs[id]||(id==='@/lib/biometrics/face-comparator'?{compareEnrolledFaces:async()=>({status:'ERROR',confidence:null,modelVersion:null})}:require(id)),
    process:{env},Number,JSON,Date,Buffer,URL,console,Math,Intl},
    {filename:file})
  return mod.exports
@@ -193,3 +193,15 @@ test('guardian ordinary gate approval needs separately approved face match',()=>
  assert.match(ui,/Run Approved Face Comparison/)
  assert.match(ui,/biometricStatus==="MATCH"/)
 })
+
+
+test('school privacy request register is admin-only and deletion cannot be silently marked resolved',()=>{
+ const sql=source('supabase/migrations/10_client_guardian_preregistration.sql')
+ const privacy=source('app/api/admin/privacy/route.ts')
+ const ui=source('app/admin/privacy/page.tsx')
+ assert.match(sql,/CREATE TABLE IF NOT EXISTS public\.privacy_requests/)
+ assert.match(sql,/ALTER TABLE public\.privacy_requests ENABLE ROW LEVEL SECURITY/)
+ assert.match(privacy,/requireStaff\('ADMIN'\)/)
+ assert.match(privacy,/Deletion requests need separately validated erasure evidence/)
+ assert.match(ui,/Automatic erasure is/)
+});

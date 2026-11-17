@@ -35,6 +35,18 @@ CREATE TABLE IF NOT EXISTS public.authorized_guardians (
   CHECK (length(trim(address)) >= 5)
 );
 
+CREATE TABLE IF NOT EXISTS public.faculty_directory (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  full_name varchar(200) NOT NULL,
+  department varchar(120),
+  destination_id uuid NOT NULL REFERENCES public.destinations(id) ON DELETE RESTRICT,
+  active boolean NOT NULL DEFAULT true,
+  public_visible boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_faculty_name ON public.faculty_directory(lower(full_name));
+
 CREATE TABLE IF NOT EXISTS public.student_guardians (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id uuid NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
@@ -105,6 +117,21 @@ CREATE TABLE IF NOT EXISTS public.identity_verification_attempts (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.privacy_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_type varchar(20) NOT NULL CHECK (request_type IN ('ACCESS','CORRECTION','DELETION')),
+  subject_type varchar(24) NOT NULL CHECK (subject_type IN ('PRE_REGISTRATION','GUARDIAN','VISITOR')),
+  subject_reference varchar(100) NOT NULL,
+  details text NOT NULL,
+  status varchar(20) NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN','REVIEWED','RESOLVED')),
+  created_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  reviewed_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  reviewed_at timestamptz,
+  resolution_notes text
+);
+CREATE INDEX IF NOT EXISTS idx_privacy_requests_status ON public.privacy_requests(status,created_at DESC);
+
 CREATE TABLE IF NOT EXISTS public.security_incidents (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   pre_registration_id uuid REFERENCES public.pre_registrations(id) ON DELETE SET NULL,
@@ -125,17 +152,19 @@ ON CONFLICT (id) DO UPDATE SET public=false;
 
 -- Sensitive tables are accessed ONLY from authenticated server routes with staff role checks.
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.faculty_directory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.authorized_guardians ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.student_guardians ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pre_registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.identity_verification_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.security_incidents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.privacy_requests ENABLE ROW LEVEL SECURITY;
 
-REVOKE ALL ON TABLE public.students,public.authorized_guardians,public.student_guardians,
- public.pre_registrations,public.identity_verification_attempts,public.security_incidents FROM anon,authenticated;
-GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE public.students,public.authorized_guardians,
+REVOKE ALL ON TABLE public.students,public.faculty_directory,public.authorized_guardians,public.student_guardians,
+ public.pre_registrations,public.identity_verification_attempts,public.security_incidents,public.privacy_requests FROM anon,authenticated;
+GRANT SELECT,INSERT,UPDATE,DELETE ON TABLE public.students,public.faculty_directory,public.authorized_guardians,
  public.student_guardians,public.pre_registrations,public.identity_verification_attempts,
- public.security_incidents TO service_role;
+ public.security_incidents,public.privacy_requests TO service_role;
 
 -- Existing visits and visitor tables must be separately locked down on staging using migration 09.
 -- Do not grant anonymous SELECT on these new tables or on guardian reference storage.

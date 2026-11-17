@@ -98,7 +98,8 @@ export async function POST(req:NextRequest){
       const result=await compareEnrolledFaces(Buffer.from(liveBytes),Buffer.from(referenceBytes))
       const biometricStatus=result.status
       const updated=await db.from('pre_registrations')
-        .update({biometric_status:biometricStatus,biometric_confidence:result.confidence})
+        .update({biometric_status:biometricStatus,biometric_confidence:result.confidence,
+          ...(biometricStatus==='NO_MATCH'?{status:'NEEDS_REVIEW'}:{})})
         .eq('id',pr.id).eq('status','PRE_REGISTERED').select('id').maybeSingle()
       if(updated.error||!updated.data)
         return NextResponse.json({error:'Comparison result could not be saved'},{status:409})
@@ -107,7 +108,7 @@ export async function POST(req:NextRequest){
         outcome:biometricStatus==='MATCH'?'MATCH':biometricStatus==='NO_MATCH'?'MISMATCH':'INCONCLUSIVE',
         notes:result.modelVersion?'Provider model: '+result.modelVersion:null
       })
-      if(biometricStatus!=='MATCH'){
+      if(biometricStatus==='NO_MATCH'){
         await db.from('security_incidents').insert({
           pre_registration_id:pr.id,category:'PHOTO_REVIEW',details:'Automatic face comparison did not pass',
           created_by:staff.profileId
@@ -129,8 +130,11 @@ export async function POST(req:NextRequest){
       const guardian=requiresGuardianCheck(pr.visitor_type,pr.purpose)
       if(guardian&&body.referenceReviewed!==true&&decision==='PASSED')
         return NextResponse.json({error:'Review the enrolled guardian reference photo before confirming'},{status:422})
+      if(decision==='PASSED'&&pr.status==='NEEDS_REVIEW')
+        return NextResponse.json({error:'Flagged registration must be investigated and resubmitted; the same pass cannot be cleared by a standard photo review'},{status:403})
       const {error:save}=await db.from('pre_registrations')
-        .update({photo_review_status:decision,reviewed_by:staff.profileId,reviewed_at:new Date().toISOString()})
+        .update({photo_review_status:decision,...(decision==='FAILED'?{status:'NEEDS_REVIEW'}:{}),
+          reviewed_by:staff.profileId,reviewed_at:new Date().toISOString()})
         .eq('id',pr.id).in('status',['PRE_REGISTERED','NEEDS_REVIEW'])
       if(save)return NextResponse.json({error:'Could not save photo review'},{status:500})
       await db.from('identity_verification_attempts').insert({
@@ -159,7 +163,13 @@ export async function POST(req:NextRequest){
       return NextResponse.json({success:true,status:'INSIDE',visitId:result.data[0].visit_id,visitorName:result.data[0].visitor_name})
     }
     if(action==='checkout'){
-      if(pr.status!=='ADMITTED')return NextResponse.json({error:'No active entry. Duplicate exit attempt blocked.'},{status:409})
+      if(pr.status!=='ADMITTED'){
+        await db.from('security_incidents').insert({
+          pre_registration_id:pr.id,category:'DUPLICATE_SCAN',
+          details:'Exit attempted for a pass that is not actively checked in',created_by:staff.profileId
+        })
+        return NextResponse.json({error:'No active entry. Duplicate exit attempt blocked.'},{status:409})
+      }
       const result=await db.rpc('checkout_pre_registration',{p_id:pr.id,p_staff_id:staff.profileId})
       if(result.error||!result.data?.length)return NextResponse.json({error:'Checkout could not be recorded'},{status:409})
       return NextResponse.json({success:true,status:'EXITED',visitorName:result.data[0].visitor_name})

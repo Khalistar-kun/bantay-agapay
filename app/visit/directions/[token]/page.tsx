@@ -22,6 +22,40 @@ export default function VisitorWayfindingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [zoom, setZoom] = useState(false)
+  const [gpsBusy,setGpsBusy] = useState(false)
+  const [gpsMessage,setGpsMessage] = useState("")
+  const [gpsAccuracy,setGpsAccuracy] = useState<number|null>(null)
+  // Optional vicinity check, not an attempt to locate the visitor on a floor plan.
+  async function checkSchoolVicinity(){
+    setGpsBusy(true);setGpsMessage("");setGpsAccuracy(null)
+    try{
+      if(!navigator.geolocation)throw Error("This device cannot provide a GPS reading.")
+      const response=await fetch("/api/client-demo?action=geofence",{cache:"no-store"})
+      const result=await response.json()
+      if(!response.ok||!result.boundary)throw Error("School geofence settings are unavailable.")
+      const b=result.boundary as {latitude:number;longitude:number;radius:number}
+      const location=await new Promise<GeolocationPosition>((resolve,reject)=>
+        navigator.geolocation.getCurrentPosition(resolve,reject,{
+          enableHighAccuracy:true,maximumAge:0,timeout:13000
+        })
+      )
+      const {latitude,longitude,accuracy}=location.coords
+      if(!Number.isFinite(accuracy)||accuracy>150)throw Error(
+        "GPS accuracy is low. Try outside a building near an open area."
+      )
+      const rad=Math.PI/180
+      const da=(b.latitude-latitude)*rad
+      const db=(b.longitude-longitude)*rad
+      const inner=Math.sin(da/2)**2+
+        Math.cos(latitude*rad)*Math.cos(b.latitude*rad)*Math.sin(db/2)**2
+      const distance=6371000*2*Math.atan2(Math.sqrt(inner),Math.sqrt(Math.max(0,1-inner)))
+      setGpsAccuracy(Math.round(accuracy))
+      setGpsMessage(distance<=b.radius?
+        "Your phone reports a location near the school. Follow the approved route on the map, and observe campus signs.":
+        "Your phone reports that you may be outside the school's configured radius. Ask a guard for your permitted entrance.")
+    }catch(e){setGpsMessage(e instanceof Error?e.message:"Unable to determine GPS location")}
+    finally{setGpsBusy(false)}
+  }
 
   useEffect(() => {
     if (!token) return
@@ -76,6 +110,21 @@ export default function VisitorWayfindingPage() {
             <p className="text-sm mt-1">{route.message || noRoute}</p>
           </div>}
         </section>
+        {route.status==="INSIDE"&&<section className="min-w-0 rounded-2xl border border-rose-100 bg-white p-4 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-bold text-lg">Optional Phone GPS Assistance</h2>
+              <p className="mt-1 text-xs text-gray-600">Check whether your phone is near campus. The GPS cannot reliably locate rooms or position you on this illustrated map.</p>
+            </div>
+            <button type="button" disabled={gpsBusy} onClick={()=>void checkSchoolVicinity()}
+              className="w-full shrink-0 rounded-xl bg-[#82172a] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto">
+              {gpsBusy?"Checking GPS…":"📍 Enable GPS Check"}
+            </button>
+          </div>
+          {gpsMessage&&<div role="status" className="mt-3 rounded-xl bg-[#f6edf1] p-3 text-sm text-[#542333]">
+            {gpsMessage}{gpsAccuracy!==null?" Approximate accuracy: ±"+gpsAccuracy+" meters.":""}
+          </div>}
+        </section>}
         <section className="min-w-0 max-w-full rounded-2xl bg-white border border-rose-100 p-3 sm:p-6 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
             <div>

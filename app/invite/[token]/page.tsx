@@ -159,7 +159,7 @@ export default function InviteRegistrationPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
-                minLength={6}
+                minLength={12}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                 required
               />

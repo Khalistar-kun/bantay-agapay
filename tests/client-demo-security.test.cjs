@@ -97,36 +97,33 @@ function setup() {
   const register=loadRoute('client-demo',cfg).POST
   return {db,cfg,approve,deny,checkout,register}
 }
-test('staff approval is authenticated, origin-protected, conditional and keeps the QR token',async()=>{
-  const x=setup()
-  x.cfg.staff=null
-  assert.equal((await x.approve(req({visitId:uuid}))).status,401)
-  x.cfg.staff={profileId:'staff-test',role:'SECURITY'}
-  assert.equal((await x.approve(req({visitId:uuid},'https://evil.example'))).status,403)
-  assert.equal((await x.approve(req({visitId:'bad'}))).status,400)
-  assert.equal((await x.approve(req({visitId:uuid,token:'b'.repeat(32)}))).status,200)
-  assert.equal(x.db.visits[0].public_token,tok)
-  assert.equal(x.db.visits[0].status,'INSIDE')
-  assert.equal((await x.approve(req({visitId:uuid}))).status,409)
-  assert.equal((await x.deny(req({visitId:uuid,reason:'Too late'}))).status,409)
+test('legacy approval cannot bypass authorized guardian verification',async()=>{
+ const x=setup()
+ x.cfg.staff=null
+ assert.equal((await x.approve(req({visitId:uuid}))).status,401)
+ x.cfg.staff={profileId:'staff-test',role:'SECURITY'}
+ assert.equal((await x.approve(req({visitId:uuid},'https://evil.example'))).status,403)
+ assert.equal((await x.approve(req({visitId:uuid,token:tok}))).status,410)
+ assert.equal(x.db.visits[0].status,'PENDING')
+ assert.equal(x.db.visits[0].public_token,tok)
 })
-test('denied visits cannot be approved or denied a second time',async()=>{
-  const x=setup()
-  assert.equal((await x.deny(req({visitId:uuid,reason:'Security decision'}))).status,200)
-  assert.equal(x.db.visits[0].status,'DENIED')
-  assert.equal((await x.deny(req({visitId:uuid,reason:'Repeated'}))).status,409)
-  assert.equal((await x.approve(req({visitId:uuid}))).status,409)
-  assert.equal((await x.deny(req({visitId:uuid,reason:'x'.repeat(501)}))).status,400)
+test('legacy denial remains possible to safely close pending records',async()=>{
+ const x=setup()
+ assert.equal((await x.deny(req({visitId:uuid,reason:'Identity unavailable'}))).status,200)
+ assert.equal(x.db.visits[0].status,'DENIED')
+ assert.equal((await x.deny(req({visitId:uuid,reason:'Repeated'}))).status,409)
+ assert.equal((await x.approve(req({visitId:uuid}))).status,410)
+ assert.equal((await x.deny(req({visitId:uuid,reason:'x'.repeat(501)}))).status,400)
 })
-test('checkout requires matching QR and active state and refuses repeat scans',async()=>{
-  const x=setup()
-  assert.equal((await x.checkout(req({visitId:uuid,token:tok}))).status,409)
-  assert.equal((await x.approve(req({visitId:uuid}))).status,200)
-  assert.equal((await x.checkout(req({visitId:uuid,token:'b'.repeat(32)}))).status,409)
-  assert.equal(x.db.visits[0].status,'INSIDE')
-  assert.equal((await x.checkout(req({visitId:uuid,token:tok}))).status,200)
-  assert.equal(x.db.visits[0].status,'EXITED')
-  assert.equal((await x.checkout(req({visitId:uuid,token:tok}))).status,409)
+test('previously checked-in legacy visits can still be checked out once',async()=>{
+ const x=setup()
+ assert.equal((await x.checkout(req({visitId:uuid,token:tok}))).status,409)
+ x.db.visits[0].status='INSIDE'
+ assert.equal((await x.checkout(req({visitId:uuid,token:'b'.repeat(32)}))).status,409)
+ assert.equal((await x.checkout(req({visitId:uuid,token:tok}))).status,200)
+ assert.equal(x.db.visits[0].status,'EXITED')
+ assert.equal(x.db.visits[0].checked_out_by,'staff-test')
+ assert.equal((await x.checkout(req({visitId:uuid,token:tok}))).status,409)
 })
 test('legacy client registration is disabled, preventing a guardian verification bypass',async()=>{
  const x=setup()

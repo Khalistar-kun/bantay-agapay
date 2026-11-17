@@ -22,7 +22,8 @@ const links=[
  {href:"/admin/destinations",label:"Faculty & Destinations",description:"Register rooms, buildings, offices and campus locations",icon:"🏫"},
  {href:"/admin/faculty-directory",label:"Faculty Office Directory",description:"Publish approved teacher and faculty destinations for visitor search",icon:"📍"},
  {href:"/admin/personnel",label:"Personnel & Accounts",description:"Manage security guards, school administrator access and photos",icon:"👤"},
- {href:"/admin/settings",label:"System & Privacy Settings",description:"Configure school location and operational policies",icon:"⚙"},
+ {href:"/admin/settings",label:"School Settings",description:"Configure school geofence, location and map policies",icon:"⚙"},
+ {href:"/admin/privacy",label:"Privacy & Data Rights",description:"School privacy contact, data lifecycle targets and request register",icon:"🔒"},
 ]
 
 export default function AdministratorDashboard(){

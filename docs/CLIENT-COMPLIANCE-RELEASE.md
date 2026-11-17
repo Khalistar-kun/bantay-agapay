@@ -28,3 +28,20 @@ Do not run these migrations on the connected live Supabase project.
 - For child emergency releases, QR entry does NOT authorize taking a child out of school.
 - Pre-registered does not count as physically inside. Gate entry timestamps start only when approved.
 - Any school-student or guardian personally identifying data requires authorized school governance.
+
+
+## Progress checkpoint: November 17, 2026
+Implementation includes a student/guardian registry, pre-registration from home with an
+offline-presentable QR, data and relationship verification, atomic entry/exit processing,
+manual photo review, an optional approved-provider biometric comparison adapter,
+faculty office mapping, mobile visitor/security/admin screens, audit and incident reports,
+privacy request registers, and safeguarded rejection of legacy security-bypassing routes.
+
+**Still required before release**:
+- School-approved biometric comparison and liveness provider, calibrated threshold and bias/error testing with consented participants. Code fails closed while unconfigured.
+- Secure returning-visitor identity-based prefill (e.g. school-approved OTP); phone-only lookup has been retired.
+- Isolated Supabase staging database to apply and test migrations 09/10, storage access and transaction RPCs, then rehearse backup/rollback.
+- Approved retention and erasure enforcement. Current retention settings are only policy targets.
+- Rate limits/abuse controls for registration and staff authentication.
+- Real smartphone camera, QR, GPS and actual campus route tests, plus school policy/legal review.
+- Final change freeze, one reviewed merge into main and one production deployment.
