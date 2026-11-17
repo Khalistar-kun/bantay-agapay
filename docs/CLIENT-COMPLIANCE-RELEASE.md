@@ -96,3 +96,16 @@ The former optional returning-visitor SMS/no-SMS fallback described above has be
 - SMS and enrollment data are not sent to real numbers in CI; tests use mocked browser APIs and disposable PostgreSQL, including token replay/expiry/phone-binding tests.
 - Phone verification **does not** establish legal guardian status, facial identity, liveness, child release authorization, or campus entry. Those safeguards remain independent.
 - Previously shared TextBee credentials must be rotated before live enablement. Conduct school privacy review, real-device delivery, carrier billing and acceptance tests before deployment.
+
+## Administrator SMS test (development-only)
+- Located under **Administrator Dashboard → Database Connection Checker → Test SMS · TextBee**.
+- GET `/api/admin/health/sms` reports read-only readiness, displays **masked** school test handset, and sends **nothing**.
+- POST is allowed only after an approved **ADMIN** session and same-origin request; guards and visitors cannot run it.
+- Staging-only server variables: `BA_SMS_TEST_ENABLED=true`, `BA_SMS_TEST_PHONE=09XXXXXXXXX` (school-owned approved test SIM) plus the free-only `TEXTBEE_API_KEY`, `TEXTBEE_DEVICE_ID`, `BA_FREE_SMS_ONLY=true`, `BA_SMS_CARRIER_INCLUDED=true` after confirming carrier allowance, and `BA_RATE_LIMIT_SECRET` (min 32 characters).
+- A user cannot specify the test destination or message. Only the server-configured school test number is accepted.
+- SMS is never dispatched on dashboard load or status refresh—only after a deliberate **Send test SMS** click.
+- The test sends a **non-OTP** diagnostic message. It does not create or consume visitor verification challenges, visitor registrations or QR passes.
+- Existing DB-backed rate limit restricts each admin/IP to 2/hour; an independent project-wide HMAC-keyed limit restricts all admins to 5/day. Failure to reach rate-limiter fails closed.
+- The UI states **TextBee accepted / queued**, not **delivered**. An administrator must confirm arrival on the school phone.
+- This feature does **not** provide a paid SMS fallback or automatic billing upgrade. A school SIM can still incur normal carrier SMS charges. Never mark the carrier flag true without confirming the school plan.
+- Do not enable this in production or expose to live school staff until approval, privacy/security review, staging testing and the complete release gates are satisfied.
