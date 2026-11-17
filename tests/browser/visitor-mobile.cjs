@@ -111,7 +111,7 @@ async function unavailableSmsBlocksRegistration(browser){
   await page.goto(base+'/pre-register?returning=1',{waitUntil:'domcontentloaded'})
   await page.getByRole('heading',{name:'Returning Visitor',exact:true}).waitFor()
   await page.getByText(/Online registration is paused/).waitFor()
-  assert.equal(await page.getByRole('button',{name:'Send Free SMS Code'}).count(),0)
+  assert.equal(await page.getByRole('button',{name:'Send Free SMS Code'}).isDisabled(),true)
   await page.getByLabel('Full Legal Name *').fill('Returning Fictional Guest')
   await page.getByLabel('Contact Number *').fill('09170000000')
   await page.getByLabel('Purpose of Visit *').selectOption('Teacher Appointment')
