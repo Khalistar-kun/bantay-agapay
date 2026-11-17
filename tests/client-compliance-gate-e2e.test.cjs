@@ -15,7 +15,8 @@ function transpile(pathname,stubs){
  const module={exports:{}}
  vm.runInNewContext(js,{module,exports:module.exports,require:id=>stubs[id]||require(id),
    Buffer,Blob,Date,Math,Number,JSON,URL,URLSearchParams,Intl,crypto,console,
-   process:{env:{NEXT_PUBLIC_SUPABASE_URL:'https://fake.supabase.test',SUPABASE_SERVICE_ROLE_KEY:'fake'}}}, {filename:pathname})
+   process:{env:{NEXT_PUBLIC_SUPABASE_URL:'https://fake.supabase.test',SUPABASE_SERVICE_ROLE_KEY:'fake',
+    BA_OTP_HMAC_SECRET:'dev-test-secret-'.repeat(4)}}}, {filename:pathname})
  return module.exports
 }
 const compliance=transpile('lib/client-compliance.ts',{})
@@ -37,7 +38,7 @@ function setup({guardian=true,match=true,biometric='MATCH'}={}){
     id:guardianId,reference_photo_path:'reference.jpg',active:true,verified_at:'2026-11-17'
   }],
  }
- const cfg={role:'SECURITY',matched:match,provider:{status:biometric,confidence:biometric==='MATCH'?.991:null,modelVersion:'school-approved-mock-1'},calls:[]}
+ const cfg={role:'SECURITY',matched:match,provider:{status:biometric,confidence:biometric==='MATCH'?.991:null,modelVersion:'school-approved-mock-1'},calls:[],proofUsed:false}
  const qb=(table)=>{
   const filters=[],opts={};let mutation='select',payload
   const rows=tables[table]||[]
@@ -77,6 +78,14 @@ function setup({guardian=true,match=true,biometric='MATCH'}={}){
   })},
   async rpc(method,args){
    cfg.calls.push(method)
+   if(method==='consume_phone_verification'){
+    const h=(v)=>crypto.createHmac('sha256','dev-test-secret-'.repeat(4)).update(v).digest('hex')
+    const match=args.p_proof_hash===h('proof|'+'d'.repeat(64)) &&
+      args.p_phone_hash===h('phone|'+'09170000000')
+    if(!match||cfg.proofUsed)return {data:false,error:null}
+    cfg.proofUsed=true
+    return {data:true,error:null}
+   }
    if(method==='admit_pre_registration'){
     const p=tables.pre_registrations.find(x=>x.id===args.p_id)
     if(!p||p.status!=='PRE_REGISTERED'||p.photo_review_status!=='PASSED'||
@@ -115,6 +124,7 @@ function setup({guardian=true,match=true,biometric='MATCH'}={}){
   '@/lib/server/client-compliance-db':server,
   '@/lib/client-compliance':compliance,
   '@/lib/server/rate-limit':{consumeRateLimit:async()=>true},
+  '@/lib/server/sms-gateway':{smsGatewayConfigured:()=>true},
   '@/lib/biometrics/face-comparator':{compareEnrolledFaces:async()=>cfg.provider}
  }
  const pre=transpile('app/api/pre-register/route.ts',mocks)
@@ -136,6 +146,7 @@ function setup({guardian=true,match=true,biometric='MATCH'}={}){
   visitorType:guardian?'Parent':'Guest',
   purpose:guardian?'Child Emergency':'Teacher Appointment',
   destinationId:destId,facePhoto:photoInput,privacyConsent:true,
+  verificationToken:'d'.repeat(64),
   birthDate:'1980-01-01',address:'Fictional School Address',
   studentName:'Fictional Child',studentGrade:'8',studentSection:'Rizal'
  }
@@ -186,7 +197,7 @@ test('guardian requires biometric comparison, manual review and authorized detai
  assert.equal((await x.gate.POST(x.request({token:p.public_token,action:'approve'}))).status,200)
  assert.equal(x.tables.visits.length,1)
  assert.equal(x.tables.visits[0].status,'INSIDE')
- assert.deepEqual(x.cfg.calls,['admit_pre_registration'])
+ assert.deepEqual(x.cfg.calls,['consume_phone_verification','admit_pre_registration'])
 });
 test('guardian data mismatch cannot be approved, even with a saved QR',async()=>{
  const x=setup({guardian:true,match:false})
@@ -216,4 +227,14 @@ test('unverified security login cannot look up private guardian identity',async(
  x.cfg.role=null
  assert.equal((await x.gate.GET(x.request(null,{token:p.public_token}))).status,401)
  assert.equal((await x.gate.POST(x.request({token:p.public_token,action:'approve'}))).status,401)
+});
+
+test('missing or reused SMS proof cannot create a second visitor pre-registration',async()=>{
+ const x=setup({guardian:false})
+ const unverified=await x.register({...x.defaultForm,verificationToken:''})
+ assert.equal(unverified.status,403)
+ assert.equal(x.tables.pre_registrations.length,0)
+ assert.equal((await x.register(x.defaultForm)).status,201)
+ assert.equal((await x.register(x.defaultForm)).status,403)
+ assert.equal(x.tables.pre_registrations.length,1)
 });
