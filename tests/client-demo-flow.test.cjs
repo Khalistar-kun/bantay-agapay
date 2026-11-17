@@ -72,7 +72,7 @@ function harness(connected) {
     document:fakeDocument,
     localStorage:storage(store),sessionStorage:storage(session),
     location:{protocol:connected?'https:':'file:',pathname:'/client-demo/index.html',assign(url){db.redirect=url}},
-    window:{addEventListener(){},scrollTo(){}},
+    window:{addEventListener(){},scrollTo(){},location:{assign(url){db.redirect=url}}},
     FormData:fakeFormData,
     navigator:{geolocation:{getCurrentPosition(onSuccess){onSuccess({coords:{latitude:14.737,longitude:120.9728,accuracy:18}})}}},
     Image:FakeImage,

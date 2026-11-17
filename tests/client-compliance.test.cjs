@@ -142,7 +142,7 @@ test('photo review for a guardian requires explicit reference-image review',asyn
 test('SQL schema prevents anonymous reads of minor records and handles gate entry/exit atomically',()=>{
  const sql=source('supabase/migrations/10_client_guardian_preregistration.sql')
  for(const table of ['students','authorized_guardians','student_guardians','pre_registrations','identity_verification_attempts','security_incidents']){
-   assert.match(sql,new RegExp('ALTER TABLE public\\\\.'+table+' ENABLE ROW LEVEL SECURITY;'))
+   assert.match(sql,new RegExp('ALTER TABLE public\\.'+table+' ENABLE ROW LEVEL SECURITY;'))
  }
  assert.match(sql,/REVOKE ALL ON TABLE public\.students,[\s\S]* FROM anon,authenticated;/)
  assert.match(sql,/SECURITY DEFINER SET search_path = ''/)

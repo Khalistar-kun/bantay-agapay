@@ -1,5 +1,5 @@
 /** Shared input parsing and matching policy. This is a fail-closed data match, not face recognition. */
-export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export const PHONE = /^09\d{9}$/
 export const PURPOSES = ['Child Emergency','Visit Student','Teacher Appointment','School Business','Delivery','Other'] as const
 export const VISITOR_TYPES = ['Parent','Guardian','Guest','Alumni','Supplier','Government','Other'] as const
