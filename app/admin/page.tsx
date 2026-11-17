@@ -61,7 +61,7 @@ export default function AdministratorDashboard(){
   {label:"Recorded Entries Today",number:stats.entriesToday,info:"Authorized check-ins at the gate"},
   {label:"Currently on Campus",number:stats.currentlyInside,info:"Checked in, not yet checked out"},
   {label:"Recorded Exits Today",number:stats.completedToday,info:"Completed exit transactions"},
-  {label:"Pending & Review Cases",number:stats.pendingApproval+stats.openCases,info:"Existing pending visits and open incidents"}
+  {label:"Pending & Review Cases",number:stats.pendingApproval+stats.openCases,info:"Active home pre-registrations and unresolved security incidents"}
  ]
  return <main className="min-h-screen w-full min-w-0 overflow-x-clip bg-[#faf6f8] text-[#2b1b26]">
   <header className="bg-white border-b border-[#eadde1]">
@@ -90,7 +90,7 @@ export default function AdministratorDashboard(){
      <Link href="/admin/reports" className="rounded-xl border border-white/50 px-5 py-3 text-center text-sm font-bold">View Visit Reports</Link>
     </div>
    </section>
-   {error&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-900">{error}</p>}
+   {error&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-900">{error} <button type="button" onClick={()=>void load()} className="ml-2 font-bold underline">Retry</button></p>}
    <section aria-label="Campus statistics" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
     {tiles.map(x=><div key={x.label} className="min-w-0 rounded-xl border border-[#f0dce4] bg-white p-3.5 shadow-sm sm:p-4">
      <p className="text-xs font-semibold text-[#735b65]">{x.label}</p>
