@@ -117,7 +117,7 @@ async function unavailableSmsBlocksRegistration(browser){
   await page.getByLabel('Purpose of Visit *').selectOption('Teacher Appointment')
   await page.locator('select').last().selectOption(destinationId)
   await page.locator('input[type="checkbox"]').check()
-  await page.getByRole('button',{name:/Continue to Face Verification/}).click()
+  // Fail-closed: the next-step control remains disabled, not clickable.
   assert.equal(await page.getByRole('button',{name:/Continue to Face Verification/}).isDisabled(),true)
   await noOverflow(page,'SMS unavailable 375px')
   console.log('PASS free-only SMS unavailable blocks registration')
