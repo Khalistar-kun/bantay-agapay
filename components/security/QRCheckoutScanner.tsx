@@ -15,6 +15,7 @@ export function QRCheckoutScanner({
   const [error,setError]=useState("")
   const [processing,setProcessing]=useState(false)
   const [scannedToken,setScannedToken]=useState("")
+  const [visitorPreview,setVisitorPreview]=useState<{visitorName:string;reference:string}|null>(null)
 
   useEffect(()=>{
     let active=true
@@ -38,8 +39,7 @@ export function QRCheckoutScanner({
               setError("This is not a Bantay-Agapay QR pass. Scan the visitor's valid pass.")
             }else{
               pausedRef.current=true
-              setScannedToken(token)
-              setError("")
+              void prepareCheckout(token)
             }
           }
         }
@@ -71,11 +71,28 @@ export function QRCheckoutScanner({
   const reset=()=>{
     pausedRef.current=false
     setScannedToken("")
+    setVisitorPreview(null)
     setProcessing(false)
     setError("")
   }
+  async function prepareCheckout(token:string){
+    setScannedToken(token)
+    setVisitorPreview(null)
+    setProcessing(true)
+    setError("")
+    try{
+      const response=await fetch("/api/security/checkout-preview?token="+encodeURIComponent(token),{
+        cache:"no-store",credentials:"same-origin"
+      })
+      const body=await response.json()
+      if(!response.ok||!body.eligible)throw Error(body.error||"Cannot verify checked-in visitor")
+      setVisitorPreview({visitorName:body.visitorName,reference:body.reference})
+    }catch(e){
+      setError(e instanceof Error?e.message:"Visitor checkout identity is unavailable. Scan again.")
+    }finally{setProcessing(false)}
+  }
   async function confirmCheckout(){
-    if(processing||!scannedToken)return
+    if(processing||!scannedToken||!visitorPreview)return
     setProcessing(true);setError("")
     try{
       const res=await fetch("/api/visit/checkout",{
@@ -103,17 +120,22 @@ export function QRCheckoutScanner({
       <div className="relative mx-auto aspect-square w-full max-w-[320px] overflow-hidden rounded-xl bg-gray-900">
         <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover"/>
         {processing&&<div className="absolute inset-0 grid place-items-center bg-black/60 text-sm font-bold text-white">
-          Recording departure…
+          {visitorPreview?"Recording departure…":"Checking visitor identity…"}
         </div>}
       </div>
       <canvas ref={canvasRef} className="hidden"/>
       {scannedToken?<section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
         <h3 className="font-bold text-amber-950">QR detected · Confirmation required</h3>
-        <p className="text-sm text-amber-950">Reference token ending in ••••{scannedToken.slice(-6).toUpperCase()}</p>
+        {visitorPreview?<div className="rounded-lg bg-white p-3">
+          <p className="text-xs font-bold uppercase text-gray-500">Checked-in visitor</p>
+          <strong className="mt-1 block break-words text-base text-[#82172a]">{visitorPreview.visitorName}</strong>
+          <p className="mt-1 text-sm text-gray-700">Reference: {visitorPreview.reference}</p>
+        </div>:<p className="text-sm text-amber-950">Verifying active QR ending in ••••{scannedToken.slice(-6).toUpperCase()}…</p>}
         <p className="text-sm text-amber-950">
-          Check the visitor's face and confirm they are physically leaving. This QR never authorizes a student's release.
+          Compare the visitor in front of you with this school record, and confirm they are physically leaving.
+          This QR never authorizes a student's release.
         </p>
-        <button type="button" disabled={processing} onClick={()=>void confirmCheckout()}
+        <button type="button" disabled={processing||!visitorPreview} onClick={()=>void confirmCheckout()
           className="w-full rounded-xl bg-[#82172a] px-4 py-3 font-bold text-white disabled:opacity-50">
           Confirm Visitor Exit & Record Checkout
         </button>
