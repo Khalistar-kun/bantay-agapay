@@ -68,3 +68,33 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/11_returning_visitor_otp.sql
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/12_guardian_registry_operations.sql
           psql -v ON_ERROR_STOP=1 -f tests/sql/gate_transactions.sql
+
+  browser-regression:
+    if: github.ref == 'refs/heads/feature/client-compliance-integration-20261117'
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://build-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: placeholder-service-key
+      NEXT_TELEMETRY_DISABLED: 1
+      BA_BROWSER_BASE_URL: http://127.0.0.1:3100
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install isolated Chromium test runtime
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - run: npm run build
+      - name: Run local Next.js server and responsive browser tests
+        run: |
+          npm run start -- -p 3100 > /tmp/bantay-next.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:3100/pre-register > /dev/null; then break; fi
+            sleep 2
+          done
+          node tests/browser/visitor-mobile.cjs
