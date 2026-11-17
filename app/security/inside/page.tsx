@@ -29,6 +29,8 @@ export default function CurrentlyInsidePage() {
   const [checkingOut, setCheckingOut] = useState<string | null>(null)
   const [showScanner, setShowScanner] = useState(false)
   const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null)
+  const [syncError,setSyncError]=useState("")
+  const [lastSyncedAt,setLastSyncedAt]=useState<string|null>(null)
   const [viewingLocationId, setViewingLocationId] = useState<string | null>(null)
   const [mapLoaded, setMapLoaded] = useState(false)
   const mapInstanceRef = useRef<any>(null)
@@ -36,12 +38,13 @@ export default function CurrentlyInsidePage() {
   const fetchInside = async () => {
     try {
       const res = await fetch("/api/security/inside")
-      if (res.ok) {
-        const { visitors } = await res.json()
-        setVisitors(visitors)
-      }
+      const result=await res.json()
+      if(!res.ok)throw Error(result.error||"Could not read active visitors")
+      setVisitors(result.visitors||[])
+      setSyncError("")
+      setLastSyncedAt(new Date().toISOString())
     } catch (err) {
-      console.error(err)
+      setSyncError(err instanceof Error?err.message:"Current campus roster could not be refreshed")
     } finally {
       setLoading(false)
     }
@@ -107,7 +110,10 @@ export default function CurrentlyInsidePage() {
   }, [viewingLocationId, mapLoaded, visitorBeingViewed])
 
   const handleCheckout = async (visitId: string) => {
+    if(checkingOut)return
+    if(!window.confirm("Confirm this visitor is physically leaving campus. This action records checkout and does not authorize student release."))return
     setCheckingOut(visitId)
+    setCheckoutNotice(null)
     try {
       const res = await fetch("/api/visit/checkout", {
         method: "POST",
@@ -116,19 +122,21 @@ export default function CurrentlyInsidePage() {
       })
 
       if (res.ok) {
+        const data=await res.json()
+        setCheckoutNotice((data.visitorName||"Visitor")+" checked out successfully.")
         await fetchInside()
       } else {
         const data = await res.json().catch(() => ({}))
-        alert(data.error || "Failed to check out visitor")
+        setSyncError(data.error || "Failed to check out visitor")
       }
     } catch (err) {
-      alert("Error checking out visitor")
+      setSyncError("Checkout failed. Check your connection and retry.")
     } finally {
       setCheckingOut(null)
     }
   }
 
-  const secondsAgo = (iso: string) => Math.round((Date.now() - new Date(iso).getTime()) / 1000)
+  const secondsAgo = (iso: string) => Math.max(0,Math.round((Date.now() - new Date(iso).getTime()) / 1000))
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -169,6 +177,14 @@ export default function CurrentlyInsidePage() {
           </button>
         </div>
 
+        {syncError && (
+          <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+            {syncError} <button type="button" onClick={()=>void fetchInside()} className="ml-2 font-bold underline">Retry</button>
+          </div>
+        )}
+        {lastSyncedAt&&<p role="status" className="mb-4 text-xs text-gray-500">
+          Active roster last synchronized: {new Date(lastSyncedAt).toLocaleTimeString("en-PH",{timeZone:"Asia/Manila"})} PH
+        </p>}
         {checkoutNotice && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 text-green-800 font-semibold text-center">
             {checkoutNotice}
