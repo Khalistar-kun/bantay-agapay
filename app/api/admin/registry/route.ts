@@ -12,6 +12,13 @@ export async function GET(request:NextRequest){
   try{
     const db=schoolDb()
     const mode=request.nextUrl.searchParams.get('mode')
+    if(mode==='relationships'){
+      const {data,error}=await db.from('student_guardians')
+        .select('id,guardian_id,student_id,relationship,active,students(full_name,grade,section)')
+        .order('id').limit(1000)
+      if(error)throw error
+      return NextResponse.json({relationships:data||[]},{headers:noStore})
+    }
     if(mode==='guardians'){
       const {data,error}=await db.from('authorized_guardians')
         .select('id,full_name,birth_date,address,contact_number,reference_photo_path,active,verified_at,created_at')
@@ -102,4 +109,46 @@ export async function POST(request:NextRequest){
   }catch{
     return NextResponse.json({error:'Invalid enrollment request'},{status:400})
   }
+}
+
+
+/** Only administrators can revoke school-authorized identities or establish new links.
+ * Database RPCs perform the modification AND audit event in a single transaction.
+ */
+export async function PATCH(request:NextRequest){
+  const staff=await requireStaff('ADMIN')
+  if(!staff)return denied()
+  const cross=denyCrossOrigin(request);if(cross)return cross
+  try{
+    const raw=await request.text()
+    if(raw.length>3000)return NextResponse.json({error:'Invalid registry request'},{status:413})
+    const body=JSON.parse(raw)
+    const db=schoolDb()
+    if(body.action==='revoke'){
+      const id=body.id,kind=body.kind,reason=safeText(body.reason,3,500)
+      if(typeof id!=='string'||!UUID.test(id)||
+        !['guardian','student','relationship'].includes(kind)||!reason)
+        return NextResponse.json({error:'Valid record, revocation type and reason required'},{status:400})
+      const {data,error}=await db.rpc('revoke_school_registry',{
+        p_kind:kind,p_id:id,p_staff_id:staff.profileId,p_reason:reason
+      })
+      if(error)return NextResponse.json({error:'School authorization could not be revoked'},{status:500})
+      if(data!==true)return NextResponse.json({error:'Record is already inactive or missing'},{status:409})
+      return NextResponse.json({success:true,revoked:true},{headers:noStore})
+    }
+    if(body.action==='link'){
+      const guardianId=body.guardianId,studentId=body.studentId,relationship=body.relationship
+      if(body.identityChecked!==true||typeof guardianId!=='string'||!UUID.test(guardianId)||
+         typeof studentId!=='string'||!UUID.test(studentId)||
+         !['PARENT','LEGAL_GUARDIAN','OTHER_AUTHORIZED'].includes(relationship))
+        return NextResponse.json({error:'Administrator relationship verification is required'},{status:400})
+      const {data,error}=await db.rpc('link_verified_guardian',{
+        p_guardian_id:guardianId,p_student_id:studentId,
+        p_relationship:relationship,p_staff_id:staff.profileId
+      })
+      if(error||!data)return NextResponse.json({error:'Guardian link could not be authorized'},{status:409})
+      return NextResponse.json({id:data},{headers:noStore})
+    }
+    return NextResponse.json({error:'Unknown registry action'},{status:400})
+  }catch{return NextResponse.json({error:'Invalid registry request'},{status:400})}
 }

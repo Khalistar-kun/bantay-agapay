@@ -39,7 +39,7 @@ function context({found=true,configured=true,rateAllowed=true}={}){
    let result=(a||[]).filter(x=>filters.every(f=>f(x)))
    if(orderKey)result=[...result].sort((x,y)=>String(x[orderKey]).localeCompare(String(y[orderKey]))*(desc?-1:1))
    result=result.slice(0,limit)
-   if(operation==='insert'){a.push(changes);return{data:[changes],error:null}}
+   if(operation==='insert'){const row={attempts:0,consumed_at:null,created_at:new Date().toISOString(),...changes};a.push(row);return{data:[row],error:null}}
    if(operation==='delete'){result.forEach(x=>a.splice(a.indexOf(x),1));return{data:result,error:null}}
    if(operation==='update'){result.forEach(x=>Object.assign(x,changes));return{data:result,error:null}}
    return{data:result,error:null}

@@ -7,6 +7,7 @@ for filename in (
     "supabase/migrations/09_lockdown_public_visit_access.sql",
     "supabase/migrations/10_client_guardian_preregistration.sql",
     "supabase/migrations/11_returning_visitor_otp.sql",
+    "supabase/migrations/12_guardian_registry_operations.sql",
 ):
     content = (root / filename).read_text(encoding="utf-8")
     parse_sql(content)
