@@ -174,7 +174,8 @@ export function LocationSharing({token}:{token:string}){
       </div>
       <span className={"rounded-full px-3 py-1 text-xs font-bold "+(watching?
         "bg-emerald-100 text-emerald-900":"bg-gray-100 text-gray-700")}>
-        {watching?"Sharing while open":remoteSharing?"Paused / not updating":"Not sharing"}
+        {watching?(pageVisible?"Sharing while open":"Paused in background"):
+          remoteSharing?"Paused / not updating":"Not sharing"}
       </span>
     </div>
     {permission==="denied"?<p role="alert" className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
