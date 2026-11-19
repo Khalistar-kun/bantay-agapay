@@ -16,7 +16,8 @@ function moduleAt(file,stubs={}){
  vm.runInNewContext(js,{module:mod,exports:mod.exports,require:id=>stubs[id]||(id==='@/lib/biometrics/face-comparator'
   ?{compareEnrolledFaces:async()=>({status:'ERROR',confidence:null,modelVersion:null})}
   :id==='@/lib/server/rate-limit'?{consumeRateLimit:async()=>true}
-  :id==='@/lib/server/sms-gateway'?{smsGatewayConfigured:()=>true}:require(id)),
+  :id==='@/lib/server/sms-gateway'?{smsGatewayConfigured:()=>true}
+  :id==='@/lib/server/location-session'?{locationSessionCookie:()=>({name:'test',value:'signed',options:{}})}:require(id)),
    process:{env},Number,JSON,Date,Buffer,URL,console,Math,Intl},
    {filename:file})
  return mod.exports
