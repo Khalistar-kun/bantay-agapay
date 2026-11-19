@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import QRCode from "qrcode"
+import {LocationSharing} from "@/components/visitor/LocationSharing"
 
 type Pass={
   reference:string;name:string;type:string;purpose:string;status:string;submittedAt:string;
@@ -166,6 +167,7 @@ export default function VisitorPassPage(){
               <>Your registration is saved, but you are <strong>not yet inside the school</strong>.
                 Security must review your photo, validate the details, and scan your QR before approving entry.</>}
           </p>}
+          {admitted&&<LocationSharing token={token}/>}
           {admitted&&<Link href={"/visit/directions/"+encodeURIComponent(token)}
             className="mt-5 block w-full rounded-xl bg-[#82172a] px-5 py-3.5 text-center font-semibold text-white">
             View My Campus Walking Directions →
