@@ -6,7 +6,7 @@ import Link from "next/link"
 type State = "connected" | "unavailable" | "not_configured"
 type StageReadiness={configured:boolean;missing:string[]}
 type Health = {status:State;database:State;checks:Record<string,State>;checkedAt:string;
-  readiness?:{registration:StageReadiness;sms:StageReadiness;guardianFaceComparison:StageReadiness;notice:string}}
+  readiness?:{registration:StageReadiness;sms:StageReadiness;guardianFaceComparison:StageReadiness;locationTracking:StageReadiness;notice:string}}
 type SmsHealth = { ready: boolean; destination: string | null; notice: string }
 
 const names: Record<string, string> = {
@@ -14,6 +14,7 @@ const names: Record<string, string> = {
   registrationRateLimits: "Registration safety checks table",
   guardianRegistry: "Guardian registry table",
   phoneVerificationProofs: "Mandatory OTP proof storage",
+  locationTrackingSchema: "Private opt-in GPS consent schema",
 }
 const badge: Record<State, string> = {
   connected: "bg-emerald-50 text-emerald-800 border-emerald-200",
@@ -118,7 +119,8 @@ export default function DatabaseHealthPage() {
               {([
                 ["registration","Visitor registration and OTP prerequisites"],
                 ["sms","Free-only Android SMS gateway"],
-                ["guardianFaceComparison","Approved guardian biometric service"]
+                ["guardianFaceComparison","Approved guardian biometric service"],
+                ["locationTracking","Visitor location sharing and privacy"]
               ] as const).map(([key,label])=>{
                 const stage=data.readiness![key]
                 return <div key={key} className="rounded-xl border border-gray-200 p-3">
