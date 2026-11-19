@@ -4,6 +4,7 @@ import { schoolDb,denyCrossOrigin,noStore,consentNotice,safeText,qrTokenPattern,
 import { PHONE,PURPOSES,VISITOR_TYPES,requiresGuardianCheck,validDate,parsePhoto,UUID } from '@/lib/client-compliance'
 import { consumeRateLimit } from '@/lib/server/rate-limit'
 import { smsGatewayConfigured } from '@/lib/server/sms-gateway'
+import {locationSessionCookie} from '@/lib/server/location-session'
 
 export const dynamic='force-dynamic'
 
@@ -130,9 +131,18 @@ export async function POST(req:NextRequest){
       return NextResponse.json({error:'Unable to save pre-registration'},{status:500})
     }
     // Never expose whether a student's information matched in public responses.
-    return NextResponse.json({
+    // The location cookie is issued ONLY after SMS-bound registration succeeds.
+    // This grants no tracking consent; it merely protects a future opt-in.
+    const response=NextResponse.json({
       token,referenceNumber,status:'PRE_REGISTERED',notice:consentNotice()
     },{status:201,headers:noStore})
+    try{
+      const cookie=locationSessionCookie(token)
+      response.cookies.set(cookie.name,cookie.value,cookie.options)
+    }catch{
+      // Registration remains valid even if the optional tracking module is off.
+    }
+    return response
   }catch{
     return NextResponse.json({error:'Could not process registration'},{status:400})
   }
