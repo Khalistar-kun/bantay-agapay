@@ -112,13 +112,15 @@ test('admin configuration readiness remains private and does not claim provider 
   assert.doesNotMatch(code,/process\.env\[key\]\s*\)/)
 })
 
-test('legacy visit location is opt-in only and visitors can stop sharing',()=>{
-  const code=read('app/visit/status/[token]/page.tsx')
-  assert.match(code,/const \[shareLocation,setShareLocation\]=useState\(false\)/)
-  assert.match(code,/visitStatus\?\.status !== "INSIDE" \|\| !shareLocation/)
-  assert.match(code,/Stop sharing my location/)
-  assert.match(code,/Share my location with security/)
-  assert.match(code,/10[0]{3}\)/)
+test('active QR pass has opt-in location and legacy QR cannot write coordinates',()=>{
+  const pass=read('app/pass/[token]/page.tsx')
+  const visitor=read('components/visitor/LocationSharing.tsx')
+  const legacy=read('app/visit/status/[token]/page.tsx')
+  assert.match(pass,/LocationSharing token=\{token\}/)
+  assert.match(visitor,/watchPosition\(/)
+  assert.match(visitor,/Stop & Clear My Location/)
+  assert.match(visitor,/maximumAge:5000/)
+  assert.doesNotMatch(legacy,/\.rpc\("update_visit_location"/)
 })
 test('gate pending queue excludes expired QR passes and displays fetch failures',()=>{
   const api=read('app/api/security/gate/route.ts')
