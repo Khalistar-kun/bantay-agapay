@@ -16,12 +16,14 @@ export function visitorLocationPresence(row:LocationReading,now=Date.now()){
     return{...empty,location_status:'WAITING_FOR_GPS' as LocationState}
   const age=Math.max(0,Math.floor((now-timestamp)/1000))
   if(age>120||timestamp>now+5000)
-    return{...empty,location_status:'STALE' as LocationState,location_age_seconds:age}
+    return{...empty,location_status:'STALE' as LocationState,
+      location_age_seconds:age,location_updated_at:row.location_updated_at}
   if(row.current_latitude===null||row.current_longitude===null||
     row.location_accuracy_m===null||!Number.isFinite(lat)||!Number.isFinite(lng)||
     !Number.isFinite(accuracy)||Math.abs(lat)>90||Math.abs(lng)>180||
     accuracy<1||accuracy>150)
-    return{...empty,location_status:'LOW_ACCURACY' as LocationState,location_age_seconds:age}
+    return{...empty,location_status:'LOW_ACCURACY' as LocationState,
+      location_age_seconds:age,location_updated_at:row.location_updated_at}
   return{
     current_latitude:lat,current_longitude:lng,
     location_accuracy_m:Math.round(accuracy),location_updated_at:row.location_updated_at,
