@@ -135,7 +135,7 @@ export function QRCheckoutScanner({
           Compare the visitor in front of you with this school record, and confirm they are physically leaving.
           This QR never authorizes a student's release.
         </p>
-        <button type="button" disabled={processing||!visitorPreview} onClick={()=>void confirmCheckout()
+        <button type="button" disabled={processing||!visitorPreview} onClick={()=>void confirmCheckout()}
           className="w-full rounded-xl bg-[#82172a] px-4 py-3 font-bold text-white disabled:opacity-50">
           Confirm Visitor Exit & Record Checkout
         </button>
