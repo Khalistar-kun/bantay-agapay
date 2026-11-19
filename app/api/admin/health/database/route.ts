@@ -11,15 +11,18 @@ type Readiness = {
   registration:{configured:boolean;missing:string[]};
   sms:{configured:boolean;missing:string[]};
   guardianFaceComparison:{configured:boolean;missing:string[]};
+  locationTracking:{configured:boolean;missing:string[]};
   notice:string
 }
 function configurationReadiness():Readiness{
   const registrationMissing:string[]=[]
   const smsMissing:string[]=[]
   const faceMissing:string[]=[]
+  const locationMissing:string[]=[]
   const present=(key:string,min:number)=>Boolean((process.env[key]||"").length>=min)
   if(!present("BA_RATE_LIMIT_SECRET",32))registrationMissing.push("BA_RATE_LIMIT_SECRET")
   if(!present("BA_OTP_HMAC_SECRET",32))registrationMissing.push("BA_OTP_HMAC_SECRET")
+  if(!present("BA_OTP_HMAC_SECRET",32))locationMissing.push("BA_OTP_HMAC_SECRET (verified browser location signing)")
   if(!present("BA_OTP_HMAC_SECRET",32))smsMissing.push("BA_OTP_HMAC_SECRET")
   if(!present("TEXTBEE_API_KEY",24))smsMissing.push("TEXTBEE_API_KEY")
   if(!/^[a-zA-Z0-9_-]{8,64}$/.test(process.env.TEXTBEE_DEVICE_ID||""))smsMissing.push("TEXTBEE_DEVICE_ID")
@@ -36,6 +39,7 @@ function configurationReadiness():Readiness{
       missing:[...new Set([...registrationMissing,...smsMissing])]},
     sms:{configured:smsMissing.length===0,missing:smsMissing},
     guardianFaceComparison:{configured:faceMissing.length===0,missing:faceMissing},
+    locationTracking:{configured:locationMissing.length===0,missing:locationMissing},
     notice:"Configuration checks are NOT SMS delivery tests, live biometric verification, rate-limit RPC execution, or proof of successful registration."
   }
 }
@@ -80,12 +84,14 @@ export async function GET() {
       db.from("auth_rate_limits").select("key_hash", { head: true }).limit(0),
       db.from("authorized_guardians").select("id", { head: true }).limit(0),
       db.from("visitor_phone_verifications").select("proof_hash", { head: true }).limit(0),
+      db.from("visits").select("location_sharing_enabled,location_accuracy_m,location_updated_at", { head: true }).limit(0),
     ])
     result.checks = {
       connectivity: checks[0].error ? "unavailable" : "connected",
       registrationRateLimits: checks[1].error ? "unavailable" : "connected",
       guardianRegistry: checks[2].error ? "unavailable" : "connected",
       phoneVerificationProofs: checks[3].error ? "unavailable" : "connected",
+      locationTrackingSchema: checks[4].error ? "unavailable" : "connected",
     }
     // Configuration is not "ready" if a required migrated table cannot be queried.
     if(checks[0].error)result.readiness.registration.missing.push("destinations table")
@@ -97,6 +103,10 @@ export async function GET() {
     if(checks[2].error){
       result.readiness.guardianFaceComparison.missing.push("authorized_guardians table")
       result.readiness.guardianFaceComparison.configured=false
+    }
+    if(checks[4].error){
+      result.readiness.locationTracking.missing.push("Location consent columns (migration 14)")
+      result.readiness.locationTracking.configured=false
     }
     result.status = checks.every(x => !x.error) ? "connected" : "unavailable"
     result.database = result.checks.connectivity
