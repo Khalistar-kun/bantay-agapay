@@ -7,7 +7,7 @@ import { ShieldCheck, ArrowLeft } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
-  const [phoneNumber, setPhoneNumber] = useState("")
+  const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -21,7 +21,7 @@ export default function LoginPage() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneNumber, password }),
+        body: JSON.stringify({ identifier, password }),
       })
 
       if (response.ok) {
@@ -54,15 +54,15 @@ export default function LoginPage() {
             {error && <div role="alert" className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">{error}</div>}
 
             <div>
-              <label htmlFor="staff-phone" className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+              <label htmlFor="staff-phone" className="block text-sm font-medium text-gray-700 mb-2">Full Name or Contact Number</label>
               <input
                 id="staff-phone"
                 autoComplete="username"
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                placeholder="09XX-XXX-XXXX or +63XXX"
+                placeholder="Full legal name or 09XXXXXXXXX"
                 required
               />
             </div>

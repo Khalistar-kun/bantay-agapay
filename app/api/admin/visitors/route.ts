@@ -10,7 +10,7 @@ const supabase = createClient(
 export async function GET(request: NextRequest) {
   const staff = await verifyStaff()
 
-  if (!staff) {
+  if (!staff || staff.role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

@@ -1,319 +1,164 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import {useEffect,useRef,useState} from "react"
 import Link from "next/link"
 import QRCode from "qrcode"
 
-interface Personnel {
-  id: string
-  full_name: string
-  phone_number: string
-  role: "ADMIN" | "SECURITY"
-  active: boolean
-  status: "PENDING" | "APPROVED" | "REJECTED"
-  created_at: string
-  photoUrl: string | null
+type Staff={
+ id:string;full_name:string;phone_number:string;position:string|null;
+ role:"ADMIN"|"SECURITY";active:boolean;status:"PENDING"|"APPROVED"|"REJECTED";
+ created_at:string;photoUrl:string|null
 }
-
-export default function PersonnelPage() {
-  const [personnel, setPersonnel] = useState<Personnel[]>([])
-  const [loading, setLoading] = useState(true)
-  const [updating, setUpdating] = useState<string | null>(null)
-
-  const [showInvite, setShowInvite] = useState(false)
-  const [inviteRole, setInviteRole] = useState<"SECURITY" | "ADMIN">("SECURITY")
-  const [inviteUrl, setInviteUrl] = useState<string | null>(null)
-  const [inviteExpiresAt, setInviteExpiresAt] = useState<string | null>(null)
-  const [generatingInvite, setGeneratingInvite] = useState(false)
-  const [inviteError, setInviteError] = useState<string | null>(null)
-  const qrCanvasRef = useRef<HTMLCanvasElement>(null)
-
-  const fetchPersonnel = async () => {
-    try {
-      const res = await fetch("/api/admin/personnel")
-      if (res.ok) {
-        const { personnel } = await res.json()
-        setPersonnel(personnel)
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchPersonnel()
-  }, [])
-
-  useEffect(() => {
-    if (inviteUrl && qrCanvasRef.current) {
-      QRCode.toCanvas(qrCanvasRef.current, inviteUrl, { width: 240, margin: 2 }, (err) => {
-        if (err) console.error("QR render error:", err)
-      })
-    }
-  }, [inviteUrl])
-
-  const handleGenerateInvite = async () => {
-    setGeneratingInvite(true)
-    setInviteError(null)
-    setInviteUrl(null)
-
-    try {
-      const res = await fetch("/api/admin/invites", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: inviteRole }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setInviteError(data.error || "Failed to generate invite")
-        return
-      }
-
-      setInviteUrl(`${window.location.origin}/invite/${data.token}`)
-      setInviteExpiresAt(data.expiresAt)
-    } catch (err) {
-      setInviteError("Error generating invite. Please check your connection.")
-    } finally {
-      setGeneratingInvite(false)
-    }
-  }
-
-  const updateProfile = async (profileId: string, changes: Partial<Pick<Personnel, "role" | "active" | "status">>) => {
-    setUpdating(profileId)
-    try {
-      const res = await fetch("/api/admin/personnel", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId, ...changes }),
-      })
-
-      if (res.ok) {
-        await fetchPersonnel()
-      } else {
-        const data = await res.json().catch(() => ({}))
-        alert(data.error || "Failed to update")
-      }
-    } catch (err) {
-      alert("Error updating personnel record")
-    } finally {
-      setUpdating(null)
-    }
-  }
-
-  const toggleActive = (p: Personnel) => updateProfile(p.id, { active: !p.active })
-  const approve = (p: Personnel) => updateProfile(p.id, { status: "APPROVED" })
-  const reject = (p: Personnel) => updateProfile(p.id, { status: "REJECTED" })
-
-  const pending = personnel.filter((p) => p.status === "PENDING")
-  const others = personnel.filter((p) => p.status !== "PENDING")
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Bantay-Agapay Admin</h1>
-            <Link href="/admin" className="text-primary-600 hover:text-primary-800">
-              ← Back to Dashboard
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Personnel</h2>
-            <p className="text-gray-600">Invite new staff to register from their own phone</p>
-          </div>
-          <button
-            onClick={() => {
-              setShowInvite((v) => !v)
-              setInviteUrl(null)
-            }}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-semibold"
-          >
-            {showInvite ? "Cancel" : "+ Generate Invite QR"}
-          </button>
-        </div>
-
-        {showInvite && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Generate Staff Invite</h3>
-
-            {inviteError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-800 text-sm mb-4">{inviteError}</div>
-            )}
-
-            {!inviteUrl ? (
-              <div className="flex items-end gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                  <select
-                    value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as "SECURITY" | "ADMIN")}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                  >
-                    <option value="SECURITY">Security</option>
-                    <option value="ADMIN">Admin</option>
-                  </select>
-                </div>
-                <button
-                  onClick={handleGenerateInvite}
-                  disabled={generatingInvite}
-                  className="bg-green-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-50"
-                >
-                  {generatingInvite ? "Generating..." : "Generate QR Code"}
-                </button>
-              </div>
-            ) : (
-              <div className="text-center">
-                <p className="text-gray-700 mb-4">
-                  Show this QR code to the new <strong>{inviteRole === "ADMIN" ? "admin" : "security guard"}</strong>.
-                  They'll scan it with their phone to create their own account.
-                </p>
-                <canvas ref={qrCanvasRef} className="mx-auto border rounded-lg p-2" />
-                <p className="text-xs text-gray-500 mt-3">
-                  Valid for one use, expires{" "}
-                  {inviteExpiresAt ? new Date(inviteExpiresAt).toLocaleTimeString() : ""}
-                </p>
-                <p className="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
-                  The new account will need your approval below before it can log in.
-                </p>
-                <button
-                  onClick={handleGenerateInvite}
-                  className="mt-4 text-primary-600 hover:text-primary-800 text-sm font-semibold"
-                >
-                  Generate a new one
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          </div>
-        ) : (
-          <div className="space-y-10">
-            <section>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                Pending Approval {pending.length > 0 && <span className="text-yellow-600">({pending.length})</span>}
-              </h3>
-
-              {pending.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-md p-6 text-center text-gray-500">
-                  No accounts awaiting approval
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {pending.map((p) => (
-                    <div key={p.id} className="bg-white rounded-lg shadow-md p-6 flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        {p.photoUrl ? (
-                          <img src={p.photoUrl} alt={p.full_name} className="w-12 h-12 rounded-full object-cover border" />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-gray-100 border flex items-center justify-center text-gray-400 text-sm">
-                            {p.full_name?.[0] || "?"}
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-semibold text-gray-900">{p.full_name}</p>
-                          <p className="text-sm text-gray-500">{p.phone_number}</p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Registered as {p.role} · {new Date(p.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => approve(p)}
-                          disabled={updating === p.id}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => reject(p)}
-                          disabled={updating === p.id}
-                          className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition disabled:opacity-50"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">All Staff</h3>
-
-              {others.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-md p-6 text-center text-gray-500">No staff accounts yet</div>
-              ) : (
-                <div className="bg-white rounded-lg shadow-md divide-y">
-                  {others.map((p) => (
-                    <div key={p.id} className="p-6 flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        {p.photoUrl ? (
-                          <img src={p.photoUrl} alt={p.full_name} className="w-12 h-12 rounded-full object-cover border" />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-gray-100 border flex items-center justify-center text-gray-400 text-sm">
-                            {p.full_name?.[0] || "?"}
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-semibold text-gray-900">{p.full_name}</p>
-                          <p className="text-sm text-gray-500">{p.phone_number}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {p.status === "REJECTED" && (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
-                            Rejected
-                          </span>
-                        )}
-                        <select
-                          value={p.role}
-                          onChange={(e) => updateProfile(p.id, { role: e.target.value as "ADMIN" | "SECURITY" })}
-                          disabled={updating === p.id}
-                          className={`px-3 py-1 rounded-full text-sm font-semibold border-0 ${
-                            p.role === "ADMIN" ? "bg-purple-100 text-purple-800" : "bg-primary-100 text-primary-800"
-                          }`}
-                        >
-                          <option value="SECURITY">SECURITY</option>
-                          <option value="ADMIN">ADMIN</option>
-                        </select>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            p.active ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-600"
-                          }`}
-                        >
-                          {p.active ? "Active" : "Deactivated"}
-                        </span>
-                        <button
-                          onClick={() => toggleActive(p)}
-                          disabled={updating === p.id}
-                          className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
-                        >
-                          {p.active ? "Deactivate" : "Reactivate"}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
-        )}
-      </div>
+const input="w-full min-w-0 max-w-full rounded-xl border border-[#e5d6dc] bg-white px-3 py-3 text-[16px] outline-none focus:ring-2 focus:ring-rose-300"
+const action="rounded-xl px-4 py-2.5 text-xs font-semibold disabled:opacity-40"
+export default function PersonnelManagement(){
+ const [rows,setRows]=useState<Staff[]>([])
+ const [role,setRole]=useState<"ADMIN"|"SECURITY">("SECURITY")
+ const [name,setName]=useState("")
+ const [phone,setPhone]=useState("")
+ const [position,setPosition]=useState("")
+ const [password,setPassword]=useState("")
+ const [inviteRole,setInviteRole]=useState<"ADMIN"|"SECURITY">("SECURITY")
+ const [inviteUrl,setInviteUrl]=useState("")
+ const [inviteExpiry,setInviteExpiry]=useState("")
+ const [busy,setBusy]=useState(false)
+ const [error,setError]=useState("")
+ const [notice,setNotice]=useState("")
+ const qrRef=useRef<HTMLCanvasElement>(null)
+ async function load(){
+  const r=await fetch("/api/admin/personnel",{cache:"no-store"})
+  const d=await r.json()
+  if(!r.ok)throw Error(d.error||"Personnel unavailable")
+  setRows(d.personnel||[])
+ }
+ useEffect(()=>{void load().catch(e=>setError(e.message))},[])
+ useEffect(()=>{
+  if(inviteUrl&&qrRef.current)QRCode.toCanvas(qrRef.current,inviteUrl,{width:220,margin:2})
+    .catch(()=>setError("Invite QR could not be generated"))
+ },[inviteUrl])
+ async function send(method:"POST"|"PATCH",body:unknown){
+  const r=await fetch("/api/admin/personnel",{
+   method,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)
+  })
+  const d=await r.json()
+  if(!r.ok)throw Error(d.error||"Staff operation failed")
+ }
+ async function createStaff(e:React.FormEvent){
+  e.preventDefault();setBusy(true);setError("");setNotice("")
+  try{
+   if(password.length<12)throw Error("Use a strong password of at least 12 characters.")
+   await send("POST",{fullName:name,phoneNumber:phone,role,password,position})
+   setName("");setPhone("");setPassword("");setPosition("")
+   setNotice("Staff account created. Advise the employee to change their initial password securely.")
+   await load()
+  }catch(e){setError(e instanceof Error?e.message:"Cannot create account")}
+  finally{setBusy(false)}
+ }
+ async function changeProfile(id:string,changes:Record<string,unknown>){
+  setBusy(true);setError("");setNotice("")
+  try{await send("PATCH",{profileId:id,...changes});setNotice("Staff record updated.");await load()}
+  catch(e){setError(e instanceof Error?e.message:"Update failed")}
+  finally{setBusy(false)}
+ }
+ async function createInvite(){
+  setBusy(true);setError("");setNotice("")
+  try{
+   const r=await fetch("/api/admin/invites",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({role:inviteRole})})
+   const d=await r.json()
+   if(!r.ok)throw Error(d.error||"Invite unavailable")
+   setInviteUrl(window.location.origin+"/invite/"+d.token)
+   setInviteExpiry(d.expiresAt)
+   setNotice("A one-time staff invite QR is ready. Share it only with the authorized employee.")
+  }catch(e){setError(e instanceof Error?e.message:"Invite failed")}
+  finally{setBusy(false)}
+ }
+ const pending=rows.filter(x=>x.status==="PENDING")
+ const others=rows.filter(x=>x.status!=="PENDING")
+ return <main className="min-h-screen w-full min-w-0 overflow-x-clip bg-[#faf6f8] px-3 py-5 text-[#291a24] sm:px-6">
+  <div className="mx-auto max-w-6xl space-y-5">
+   <header className="rounded-2xl bg-gradient-to-br from-[#ad2945] to-[#471320] p-5 text-white sm:p-8">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+     <div><p className="text-xs font-bold uppercase tracking-widest text-rose-100">Bantay-Agapay · School Management</p>
+      <h1 className="mt-2 text-2xl font-extrabold sm:text-3xl">Personnel & Account Management</h1>
+      <p className="mt-2 text-sm text-rose-100">Control guard and administrator access, approvals, position and staff profile records.</p></div>
+     <Link href="/admin" className="rounded-full border border-white/50 px-4 py-2 text-center text-sm">← Admin Dashboard</Link>
     </div>
-  )
+   </header>
+   {error&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">{error}</p>}
+   {notice&&<p role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-900">{notice}</p>}
+   <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+    <form onSubmit={createStaff} className="min-w-0 space-y-3 rounded-2xl border border-rose-100 bg-white p-4 shadow-sm sm:p-6">
+     <h2 className="text-lg font-bold">Create Authorized Staff Account</h2>
+     <p className="text-xs text-gray-600">The user's password is hashed on the server. Never write their credentials in incident reports or shared documents.</p>
+     <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+      <label className="min-w-0 text-sm font-semibold">Full Legal Name<input required maxLength={200} value={name} onChange={e=>setName(e.target.value)} className={input+" mt-1"}/></label>
+      <label className="min-w-0 text-sm font-semibold">Contact Number<input required maxLength={11} pattern="09[0-9]{9}" value={phone} onChange={e=>setPhone(e.target.value)} className={input+" mt-1"} placeholder="09XXXXXXXXX"/></label>
+      <label className="min-w-0 text-sm font-semibold">Role
+       <select value={role} onChange={e=>setRole(e.target.value as "ADMIN"|"SECURITY")} className={input+" mt-1"}>
+        <option value="SECURITY">Security Personnel</option><option value="ADMIN">School Administrator</option>
+       </select></label>
+      <label className="min-w-0 text-sm font-semibold">Position / Designation
+       <input value={position} maxLength={120} onChange={e=>setPosition(e.target.value)} className={input+" mt-1"} placeholder="School Administrator / Guard"/></label>
+     </div>
+     <label className="block text-sm font-semibold">Initial Password (12+ characters)
+      <input type="password" required minLength={12} autoComplete="new-password" value={password} onChange={e=>setPassword(e.target.value)} className={input+" mt-1"}/>
+     </label>
+     <button disabled={busy} className="w-full rounded-xl bg-[#82172a] px-5 py-3.5 text-sm font-bold text-white">Create Staff Account</button>
+    </form>
+    <section className="min-w-0 space-y-3 rounded-2xl border border-rose-100 bg-white p-4 shadow-sm sm:p-6">
+     <h2 className="text-lg font-bold">One-Time Invite QR</h2>
+     <p className="text-xs text-gray-600">For authorized personnel registering on their own phone. Approval remains required for invite sign-ups.</p>
+     <select value={inviteRole} onChange={e=>setInviteRole(e.target.value as "ADMIN"|"SECURITY")} className={input}>
+      <option value="SECURITY">Security Personnel</option><option value="ADMIN">School Administrator</option>
+     </select>
+     <button disabled={busy} onClick={()=>void createInvite()} className="w-full rounded-xl border border-[#82172a] px-4 py-3 font-bold text-[#82172a]">Generate Invite QR</button>
+     {inviteUrl&&<div className="space-y-3 rounded-xl bg-[#faf4f7] p-4">
+      <canvas ref={qrRef} className="mx-auto max-w-full rounded-xl bg-white p-2"/>
+      <p className="break-all text-center text-xs text-gray-700">{inviteUrl}</p>
+      {inviteExpiry&&<p className="text-center text-xs text-gray-500">Expires: {new Date(inviteExpiry).toLocaleString("en-PH")}</p>}
+      <button onClick={()=>void navigator.clipboard.writeText(inviteUrl)} className="w-full rounded-xl bg-[#82172a] px-4 py-3 text-sm font-bold text-white">Copy Invite Link</button>
+     </div>}
+    </section>
+   </div>
+   <section className="space-y-3 rounded-2xl border border-rose-100 bg-white p-4 shadow-sm sm:p-6">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+     <div><h2 className="text-lg font-bold">Pending Staff Approvals</h2><p className="text-xs text-gray-600">{pending.length} pending account{pending.length===1?"":"s"}</p></div>
+     <button onClick={()=>void load()} className="text-sm font-bold text-[#82172a]">Refresh</button>
+    </div>
+    {pending.length?pending.map(p=><div key={p.id} className="flex min-w-0 flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between">
+     <div className="min-w-0"><strong className="block break-words">{p.full_name}</strong><p className="text-xs text-gray-500">{p.phone_number} · {p.role}</p></div>
+     <div className="flex flex-wrap gap-2">
+      <button disabled={busy} className={action+" bg-emerald-700 text-white"} onClick={()=>void changeProfile(p.id,{status:"APPROVED"})}>Approve</button>
+      <button disabled={busy} className={action+" border border-red-200 text-red-800"} onClick={()=>void changeProfile(p.id,{status:"REJECTED"})}>Reject</button>
+     </div>
+    </div>):<p className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">No pending staff access requests.</p>}
+   </section>
+   <section className="space-y-3 rounded-2xl border border-rose-100 bg-white p-4 shadow-sm sm:p-6">
+    <h2 className="text-lg font-bold">All Personnel</h2>
+    <div className="grid min-w-0 gap-3">
+     {others.map(p=><div key={p.id} className="flex min-w-0 flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
+       {p.photoUrl?<img src={p.photoUrl} alt={p.full_name} className="size-12 shrink-0 rounded-full object-cover"/>:
+        <div className="grid size-12 shrink-0 place-items-center rounded-full bg-[#f4e7eb] text-[#82172a]">{p.full_name.charAt(0)}</div>}
+       <div className="min-w-0">
+        <strong className="block break-words text-sm">{p.full_name}</strong>
+        <p className="text-xs text-gray-600">{p.phone_number} · {p.role}</p>
+        <p className="text-xs text-gray-500">{p.position||"No position set"} · {p.active?"Active":"Inactive"}</p>
+       </div>
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+       <input aria-label={"Position for "+p.full_name} defaultValue={p.position||""} maxLength={120}
+        onBlur={e=>{if(e.target.value!==p.position)void changeProfile(p.id,{position:e.target.value})}}
+        className="min-w-0 flex-1 rounded-lg border p-2 text-sm sm:w-36" placeholder="Position"/>
+       <button disabled={busy} onClick={()=>void changeProfile(p.id,{active:!p.active})}
+        className={action+(p.active?" border border-red-200 text-red-800":" bg-emerald-700 text-white")}>
+        {p.active?"Deactivate":"Reactivate"}
+       </button>
+      </div>
+     </div>)}
+     {!others.length&&<p className="rounded-xl bg-gray-50 p-4 text-sm text-gray-600">No active staff records.</p>}
+    </div>
+   </section>
+  </div>
+ </main>
 }

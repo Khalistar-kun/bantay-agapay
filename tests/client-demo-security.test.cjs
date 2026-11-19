@@ -12,7 +12,7 @@ const origin = 'https://bantay-preview.example'
 
 function mockBackend() {
   const db = {
-    visits: [{ id: uuid, visitor_id: uuid2, status: 'PENDING', public_token: tok }],
+    visits: [{ id: uuid, visitor_id: uuid2, pre_registration_id: null, status: 'PENDING', public_token: tok }],
     visitors: [{ id: uuid2, full_name: 'Demo Visitor', contact_number: '09170000000' }],
     destinations: [{ id: uuid2, active: true }],
     system_settings: [{key:'school_latitude',value:'14.737'},{key:'school_longitude',value:'120.9728'},{key:'geofence_radius',value:'500'}],
@@ -25,6 +25,7 @@ function mockBackend() {
     const api = {
       select() { return api },
       eq(field, value) { filters.push([field, value]); return api },
+      is(field,value){filters.push([field,value]);return api},
       update(value) { action = 'update'; payload = value; return api },
       insert(value) { action = 'insert'; payload = value; return api },
       delete() { action = 'delete'; return api },
@@ -97,64 +98,42 @@ function setup() {
   const register=loadRoute('client-demo',cfg).POST
   return {db,cfg,approve,deny,checkout,register}
 }
-test('staff approval is authenticated, origin-protected, conditional and keeps the QR token',async()=>{
-  const x=setup()
-  x.cfg.staff=null
-  assert.equal((await x.approve(req({visitId:uuid}))).status,401)
-  x.cfg.staff={profileId:'staff-test',role:'SECURITY'}
-  assert.equal((await x.approve(req({visitId:uuid},'https://evil.example'))).status,403)
-  assert.equal((await x.approve(req({visitId:'bad'}))).status,400)
-  assert.equal((await x.approve(req({visitId:uuid,token:'b'.repeat(32)}))).status,200)
-  assert.equal(x.db.visits[0].public_token,tok)
-  assert.equal(x.db.visits[0].status,'INSIDE')
-  assert.equal((await x.approve(req({visitId:uuid}))).status,409)
-  assert.equal((await x.deny(req({visitId:uuid,reason:'Too late'}))).status,409)
+test('legacy approval cannot bypass authorized guardian verification',async()=>{
+ const x=setup()
+ x.cfg.staff=null
+ assert.equal((await x.approve(req({visitId:uuid}))).status,401)
+ x.cfg.staff={profileId:'staff-test',role:'SECURITY'}
+ assert.equal((await x.approve(req({visitId:uuid},'https://evil.example'))).status,403)
+ assert.equal((await x.approve(req({visitId:uuid,token:tok}))).status,410)
+ assert.equal(x.db.visits[0].status,'PENDING')
+ assert.equal(x.db.visits[0].public_token,tok)
 })
-test('denied visits cannot be approved or denied a second time',async()=>{
-  const x=setup()
-  assert.equal((await x.deny(req({visitId:uuid,reason:'Security decision'}))).status,200)
-  assert.equal(x.db.visits[0].status,'DENIED')
-  assert.equal((await x.deny(req({visitId:uuid,reason:'Repeated'}))).status,409)
-  assert.equal((await x.approve(req({visitId:uuid}))).status,409)
-  assert.equal((await x.deny(req({visitId:uuid,reason:'x'.repeat(501)}))).status,400)
+test('legacy denial remains possible to safely close pending records',async()=>{
+ const x=setup()
+ assert.equal((await x.deny(req({visitId:uuid,reason:'Identity unavailable'}))).status,200)
+ assert.equal(x.db.visits[0].status,'DENIED')
+ assert.equal((await x.deny(req({visitId:uuid,reason:'Repeated'}))).status,409)
+ assert.equal((await x.approve(req({visitId:uuid}))).status,410)
+ assert.equal((await x.deny(req({visitId:uuid,reason:'x'.repeat(501)}))).status,400)
 })
-test('checkout requires matching QR and active state and refuses repeat scans',async()=>{
-  const x=setup()
-  assert.equal((await x.checkout(req({visitId:uuid,token:tok}))).status,409)
-  assert.equal((await x.approve(req({visitId:uuid}))).status,200)
-  assert.equal((await x.checkout(req({visitId:uuid,token:'b'.repeat(32)}))).status,409)
-  assert.equal(x.db.visits[0].status,'INSIDE')
-  assert.equal((await x.checkout(req({visitId:uuid,token:tok}))).status,200)
-  assert.equal(x.db.visits[0].status,'EXITED')
-  assert.equal((await x.checkout(req({visitId:uuid,token:tok}))).status,409)
+test('previously checked-in legacy visits can still be checked out once',async()=>{
+ const x=setup()
+ assert.equal((await x.checkout(req({visitId:uuid,token:tok}))).status,409)
+ x.db.visits[0].status='INSIDE'
+ assert.equal((await x.checkout(req({visitId:uuid,token:'b'.repeat(32)}))).status,409)
+ assert.equal((await x.checkout(req({visitId:uuid,token:tok}))).status,200)
+ assert.equal(x.db.visits[0].status,'EXITED')
+ assert.equal(x.db.visits[0].checked_out_by,'staff-test')
+ assert.equal((await x.checkout(req({visitId:uuid,token:tok}))).status,409)
 })
-test('client registration validates consent, size, photo, and creates a separate visitor record',async()=>{
-  const x=setup()
-  const jpeg=Buffer.concat([Buffer.from([0xff,0xd8,0xff]),Buffer.alloc(128)])
-  const data={action:'register',fullName:'Test Person',contactNumber:'09170000000',
-    visitorType:'Guest',purpose:'Appointment',destinationId:uuid2,
-    facePhoto:'data:image/jpeg;base64,'+jpeg.toString('base64'),privacyConsent:true,
-    gpsReading:{latitude:14.737,longitude:120.9728,accuracy:18,capturedAt:new Date().toISOString()}}
-  assert.equal((await x.register(req({...data,privacyConsent:false}))).status,400)
-  assert.equal((await x.register(req({...data,facePhoto:'data:image/svg+xml;base64,AAA='}))).status,400)
-  assert.equal((await x.register(req({...data,destinationId:uuid}))).status,400)
-  assert.equal((await x.register(req(data,'https://evil.example'))).status,403)
-  assert.equal((await x.register(req({...data,gpsReading:null}))).status,422)
-  assert.equal((await x.register(req({...data,gpsReading:{...data.gpsReading,latitude:14.80}}))).status,403)
-  assert.equal((await x.register(req({...data,gpsReading:{...data.gpsReading,accuracy:300}}))).status,422)
-  const result=await x.register(req(data))
-  assert.equal(result.status,201)
-  assert.match(result.body.token,/^[0-9a-f]{32}$/)
-  assert.match(result.body.referenceNumber,/^V-[0-9A-F]{8}$/)
-  assert.equal(x.db.visits.length,2)
-  assert.equal(x.db.visitors.length,2)
-  assert.equal(x.db.visitors[0].full_name,'Demo Visitor')
-  assert.equal(x.db.visits[1].status,'PENDING')
-  assert.equal(x.db.uploaded.length,1)
-  assert.equal(x.db.verification_logs.length,1)
-  assert.equal(x.db.verification_logs[0].gps_status,'GPS_VERIFIED')
-  assert.equal(x.db.verification_logs[0].face_status,'FACE_ENROLLED')
-})
+test('legacy client registration is disabled, preventing a guardian verification bypass',async()=>{
+ const x=setup()
+ const res=await x.register(req({action:'register',fullName:'Fictional',facePhoto:'fake'}))
+ assert.equal(res.status,410)
+ assert.match(res.body.error,/secure|pre-register/i)
+ assert.equal(x.db.visits.length,1)
+ assert.equal(x.db.uploaded.length,0)
+});
 test('client script remains valid JavaScript',()=>{
   assert.doesNotThrow(()=>new vm.Script(fs.readFileSync(path.join(__dirname,'../public/client-demo/script.js'),'utf8')))
 })

@@ -4,124 +4,150 @@ import { useEffect, useRef, useState } from "react"
 import jsQR from "jsqr"
 
 export function QRCheckoutScanner({
-  onCheckedOut,
-  onClose,
-}: {
-  onCheckedOut: (visitorName: string) => void
-  onClose: () => void
-}) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [processing, setProcessing] = useState(false)
-  const pausedRef = useRef(false)
+  onCheckedOut,onClose,
+}:{
+  onCheckedOut:(visitorName:string)=>void
+  onClose:()=>void
+}){
+  const videoRef=useRef<HTMLVideoElement>(null)
+  const canvasRef=useRef<HTMLCanvasElement>(null)
+  const pausedRef=useRef(false)
+  const [error,setError]=useState("")
+  const [processing,setProcessing]=useState(false)
+  const [scannedToken,setScannedToken]=useState("")
+  const [visitorPreview,setVisitorPreview]=useState<{visitorName:string;reference:string}|null>(null)
 
-  useEffect(() => {
-    let stream: MediaStream | null = null
-    let rafId: number
-
-    const scanFrame = () => {
-      if (!pausedRef.current) {
-        const video = videoRef.current
-        const canvas = canvasRef.current
-        if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
-          canvas.width = video.videoWidth
-          canvas.height = video.videoHeight
-          const ctx = canvas.getContext("2d")
-          if (ctx) {
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-            const code = jsQR(imageData.data, imageData.width, imageData.height)
-
-            if (code?.data) {
-              pausedRef.current = true
-              handleToken(code.data)
+  useEffect(()=>{
+    let active=true
+    let stream:MediaStream|null=null
+    let rafId=0
+    const scan=()=>{
+      if(!active)return
+      const video=videoRef.current,canvas=canvasRef.current
+      if(!pausedRef.current&&video&&canvas&&video.readyState>=2&&video.videoWidth>0){
+        const ctx=canvas.getContext("2d",{willReadFrequently:true})
+        if(ctx){
+          const scale=Math.min(1,700/video.videoWidth)
+          canvas.width=Math.round(video.videoWidth*scale)
+          canvas.height=Math.round(video.videoHeight*scale)
+          ctx.drawImage(video,0,0,canvas.width,canvas.height)
+          const image=ctx.getImageData(0,0,canvas.width,canvas.height)
+          const read=jsQR(image.data,image.width,image.height,{inversionAttempts:"dontInvert"})
+          const token=read?.data.trim()||""
+          if(token){
+            if(!/^[a-f0-9]{32}$/i.test(token)){
+              setError("This is not a Bantay-Agapay QR pass. Scan the visitor's valid pass.")
+            }else{
+              pausedRef.current=true
+              void prepareCheckout(token)
             }
           }
         }
       }
-
-      rafId = requestAnimationFrame(scanFrame)
+      rafId=requestAnimationFrame(scan)
     }
-
-    const start = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          rafId = requestAnimationFrame(scanFrame)
-        }
-      } catch (err) {
-        setError("Camera access denied. Please allow camera access to scan.")
+    const start=async()=>{
+      try{
+        if(!navigator.mediaDevices?.getUserMedia)throw Error("Camera is unavailable on this device.")
+        const camera=await navigator.mediaDevices.getUserMedia({
+          video:{facingMode:{ideal:"environment"}},audio:false
+        })
+        if(!active){camera.getTracks().forEach(t=>t.stop());return}
+        stream=camera
+        const video=videoRef.current
+        if(video){video.srcObject=camera;await video.play();rafId=requestAnimationFrame(scan)}
+      }catch{
+        if(active)setError("Camera permission is unavailable. Use the main Gate QR Scanner for manual entry.")
       }
     }
-
-    start()
-
-    return () => {
-      cancelAnimationFrame(rafId)
-      stream?.getTracks().forEach((track) => track.stop())
+    void start()
+    return()=>{
+      active=false;cancelAnimationFrame(rafId)
+      stream?.getTracks().forEach(t=>t.stop())
+      pausedRef.current=false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  },[])
 
-  const handleToken = async (token: string) => {
+  const reset=()=>{
+    pausedRef.current=false
+    setScannedToken("")
+    setVisitorPreview(null)
+    setProcessing(false)
+    setError("")
+  }
+  async function prepareCheckout(token:string){
+    setScannedToken(token)
+    setVisitorPreview(null)
     setProcessing(true)
-    setError(null)
-
-    try {
-      const res = await fetch("/api/visit/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
+    setError("")
+    try{
+      const response=await fetch("/api/security/checkout-preview?token="+encodeURIComponent(token),{
+        cache:"no-store",credentials:"same-origin"
       })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || "Failed to check out visitor")
-        setProcessing(false)
-        pausedRef.current = false
-        return
-      }
-
-      onCheckedOut(data.visitorName)
-    } catch (err) {
-      setError("Error processing checkout. Please check your connection.")
+      const body=await response.json()
+      if(!response.ok||!body.eligible)throw Error(body.error||"Cannot verify checked-in visitor")
+      setVisitorPreview({visitorName:body.visitorName,reference:body.reference})
+    }catch(e){
+      setError(e instanceof Error?e.message:"Visitor checkout identity is unavailable. Scan again.")
+    }finally{setProcessing(false)}
+  }
+  async function confirmCheckout(){
+    if(processing||!scannedToken||!visitorPreview)return
+    setProcessing(true);setError("")
+    try{
+      const res=await fetch("/api/visit/checkout",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({token:scannedToken})
+      })
+      const result=await res.json()
+      if(!res.ok)throw Error(result.error||"The visit could not be checked out")
+      onCheckedOut(result.visitorName||"Visitor")
+    }catch(e){
+      setError(e instanceof Error?e.message:"Checkout failed. Check the connection and retry.")
       setProcessing(false)
-      pausedRef.current = false
     }
   }
 
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Scan Visitor QR Code</h2>
-        <p className="text-gray-600 text-sm mb-4">Point the camera at the visitor's checkout QR code</p>
-
-        {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-800 text-sm mb-4">{error}</div>}
-
-        <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-square mb-4">
-          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-          {processing && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <div className="text-white text-center">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-2"></div>
-                <p className="text-sm">Processing...</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <canvas ref={canvasRef} className="hidden" />
-
-        <button
-          onClick={onClose}
-          className="w-full bg-gray-200 text-gray-800 font-semibold py-3 rounded-lg hover:bg-gray-300 transition"
-        >
-          Cancel
-        </button>
+  return <div role="dialog" aria-modal="true" aria-label="Visitor QR checkout"
+    className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/75 p-3 sm:p-4">
+    <div className="w-full max-w-md space-y-4 rounded-2xl bg-white p-4 shadow-xl sm:p-6">
+      <div><h2 className="text-xl font-bold text-[#82172a]">Visitor Exit Verification</h2>
+        <p className="mt-1 text-sm text-gray-600">
+          Scan the visitor's QR, verify the person in front of you, then explicitly confirm their exit.
+        </p>
       </div>
+      {error&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+      <div className="relative mx-auto aspect-square w-full max-w-[320px] overflow-hidden rounded-xl bg-gray-900">
+        <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover"/>
+        {processing&&<div className="absolute inset-0 grid place-items-center bg-black/60 text-sm font-bold text-white">
+          {visitorPreview?"Recording departure…":"Checking visitor identity…"}
+        </div>}
+      </div>
+      <canvas ref={canvasRef} className="hidden"/>
+      {scannedToken?<section className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <h3 className="font-bold text-amber-950">QR detected · Confirmation required</h3>
+        {visitorPreview?<div className="rounded-lg bg-white p-3">
+          <p className="text-xs font-bold uppercase text-gray-500">Checked-in visitor</p>
+          <strong className="mt-1 block break-words text-base text-[#82172a]">{visitorPreview.visitorName}</strong>
+          <p className="mt-1 text-sm text-gray-700">Reference: {visitorPreview.reference}</p>
+        </div>:<p className="text-sm text-amber-950">Verifying active QR ending in ••••{scannedToken.slice(-6).toUpperCase()}…</p>}
+        <p className="text-sm text-amber-950">
+          Compare the visitor in front of you with this school record, and confirm they are physically leaving.
+          This QR never authorizes a student's release.
+        </p>
+        <button type="button" disabled={processing||!visitorPreview} onClick={()=>void confirmCheckout()}
+          className="w-full rounded-xl bg-[#82172a] px-4 py-3 font-bold text-white disabled:opacity-50">
+          Confirm Visitor Exit & Record Checkout
+        </button>
+        <button type="button" disabled={processing} onClick={reset}
+          className="w-full rounded-xl border border-amber-300 bg-white px-4 py-3 text-sm font-bold text-amber-950 disabled:opacity-50">
+          Scan a Different QR
+        </button>
+      </section>:<p role="status" className="text-center text-xs text-gray-600">Camera is looking for a 32-character school visit QR.</p>}
+      <button type="button" disabled={processing} onClick={onClose}
+        className="w-full rounded-xl border border-gray-300 px-4 py-3 font-bold text-gray-700 disabled:opacity-50">
+        Cancel & Return to Security
+      </button>
     </div>
-  )
+  </div>
 }

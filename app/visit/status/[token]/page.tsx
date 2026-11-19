@@ -50,6 +50,7 @@ export default function VisitStatusPage() {
 
         const result = rows[0]
 
+        setError(null)
         setVisitStatus({
           status: result.status as VisitStatus["status"],
           visitor_name: result.visitor_name || "Unknown",
@@ -68,7 +69,7 @@ export default function VisitStatusPage() {
 
     if (token) {
       // Poll for updates
-      const interval = setInterval(fetchStatus, 2000)
+      const interval = setInterval(()=>{if(!document.hidden)void fetchStatus()},10000)
       fetchStatus()
 
       return () => clearInterval(interval)
@@ -83,37 +84,9 @@ export default function VisitStatusPage() {
     }
   }, [visitStatus?.status, token])
 
-  // While the visitor is inside and this page stays open, periodically push
-  // their current location so security can see where they are on campus.
-  useEffect(() => {
-    if (visitStatus?.status !== "INSIDE" || !navigator.geolocation) return
-
-    const pushLocation = () => {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const supabase = createClient()
-            await supabase.rpc("update_visit_location", {
-              p_token: token,
-              p_latitude: position.coords.latitude,
-              p_longitude: position.coords.longitude,
-            } as never)
-          } catch (err) {
-            console.error("Location update failed:", err)
-          }
-        },
-        () => {
-          // Silently ignore - live tracking is best-effort
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 }
-      )
-    }
-
-    pushLocation()
-    const interval = setInterval(pushLocation, 20000)
-
-    return () => clearInterval(interval)
-  }, [visitStatus?.status, token])
+  // The old public-QR location RPC has been revoked by migration 14.
+  // Existing legacy visitor status remains read-only. Never use the QR
+  // itself to authorize precise coordinates or recreate anonymous writes.
 
   if (loading) {
     return (
@@ -147,7 +120,7 @@ export default function VisitStatusPage() {
                 <span className="text-2xl">⏳</span>
               </div>
               <h1 className="text-2xl font-bold text-gray-900">Awaiting Approval</h1>
-              <p className="text-gray-600 mt-2">Reference: {refNumber}</p>
+              <p className="text-gray-600 mt-2">Reference: {refNumber||visitStatus.reference_number}</p>
             </div>
 
             <div className="space-y-4 bg-gray-50 p-4 rounded-lg mb-6">
@@ -174,7 +147,7 @@ export default function VisitStatusPage() {
                 <span className="text-2xl">✓</span>
               </div>
               <h1 className="text-2xl font-bold text-green-600">Entry Approved</h1>
-              <p className="text-gray-600 mt-2">Reference: {refNumber}</p>
+              <p className="text-gray-600 mt-2">Reference: {refNumber||visitStatus.reference_number}</p>
             </div>
 
             <div className="space-y-4 bg-green-50 p-4 rounded-lg mb-6">
@@ -196,9 +169,15 @@ export default function VisitStatusPage() {
               You may now enter AFGBMTS. Please proceed to your destination.
             </p>
 
-            <p className="text-center text-gray-500 text-xs mb-6">
-              📍 While you're on campus, keep this page open so security can see your location.
-            </p>
+            <section className="mb-6 rounded-xl border border-rose-200 bg-[#fff6f8] p-4">
+              <h2 className="font-bold text-[#82172a]">Location sharing notice</h2>
+              <p className="mt-1 text-sm text-gray-700">
+                This older QR visit page does not collect or transmit your location.
+                Modern pre-registered visitors may optionally share their position from
+                their original verified registration browser's QR pass page.
+                Your visit and checkout do not require GPS.
+              </p>
+            </section>
 
             <a
               href={`/visit/directions/${token}`}
@@ -223,7 +202,7 @@ export default function VisitStatusPage() {
                 <span className="text-2xl">👋</span>
               </div>
               <h1 className="text-2xl font-bold text-gray-700">Checked Out</h1>
-              <p className="text-gray-600 mt-2">Reference: {refNumber}</p>
+              <p className="text-gray-600 mt-2">Reference: {refNumber||visitStatus.reference_number}</p>
             </div>
 
             <p className="text-center text-gray-600 text-sm mb-4">
@@ -246,7 +225,7 @@ export default function VisitStatusPage() {
                 <span className="text-2xl">✗</span>
               </div>
               <h1 className="text-2xl font-bold text-red-600">Entry Not Approved</h1>
-              <p className="text-gray-600 mt-2">Reference: {refNumber}</p>
+              <p className="text-gray-600 mt-2">Reference: {refNumber||visitStatus.reference_number}</p>
             </div>
 
             <div className="space-y-4 bg-red-50 p-4 rounded-lg mb-6">
