@@ -146,6 +146,52 @@ async function pendingPass(browser){
   console.log('PASS offline-presentable pending QR 390px')
  }finally{await page.close()}
 }
+async function activePassLocation(browser){
+ const context=await browser.newContext({
+  viewport:{width:390,height:844},isMobile:true,hasTouch:true,
+  geolocation:{latitude:14.732,longitude:120.98,accuracy:25}
+ })
+ await context.grantPermissions(['geolocation'],{origin:base})
+ const page=await context.newPage()
+ const actions=[]
+ try{
+  await page.route('**/api/pre-register?token=*',route=>route.fulfill({
+   status:200,contentType:'application/json',
+   body:JSON.stringify({pass:{
+     reference:'BLOC2026',name:'Fictional Visitor',type:'Guest',
+     purpose:'Teacher Appointment',status:'ADMITTED',
+     submittedAt:'2026-11-19T01:00:00.000Z',expiresAt:'2099-12-31T23:00:00.000Z',
+     destination:'Fictional Faculty Office',building:'School Building',
+     checkedIn:true,notice:'Security approved'
+   }})
+  }))
+  await page.route('**/api/visit/location*',route=>{
+    if(route.request().method()==='GET')return route.fulfill({
+      status:200,contentType:'application/json',
+      body:JSON.stringify({available:true,sharing:false,accuracyMeters:null,updatedAt:null})
+    })
+    const body=route.request().postDataJSON()
+    actions.push(body.action)
+    const response=body.action==='start'?{sharing:true,message:'Sharing started'}:
+      body.action==='stop'?{sharing:false,message:'Sharing stopped'}:
+      {accepted:true,updatedAt:new Date().toISOString(),accuracyMeters:25}
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(response)})
+  })
+  await page.goto(base+'/pass/'+token,{waitUntil:'domcontentloaded'})
+  await page.getByRole('heading',{name:'My School Visit Pass'}).waitFor()
+  await page.getByRole('heading',{name:'Optional Phone Location'}).waitFor()
+  await page.getByRole('button',{name:'Start Sharing My Location'}).click()
+  await page.getByRole('button',{name:'Stop & Clear My Location'}).waitFor()
+  await page.waitForFunction(()=>document.body.textContent.includes('Location received by school security.'),{timeout:15000})
+  assert.ok(actions.includes('start'),'Visitor must explicitly opt in')
+  assert.ok(actions.includes('update'),'Location should be sent after consent')
+  await page.getByRole('button',{name:'Stop & Clear My Location'}).click()
+  await page.getByText('Sharing stopped',{exact:true}).waitFor()
+  assert.ok(actions.includes('stop'),'Visitor must be able to revoke location sharing')
+  await noOverflow(page,'active QR location 390px')
+  console.log('PASS opt-in signed-browser location controls and stop workflow')
+ }finally{await context.close()}
+}
 ;(async()=>{
  const browser=await chromium.launch({headless:true})
  try{
@@ -153,6 +199,7 @@ async function pendingPass(browser){
   await returning(browser)
   await unavailableSmsBlocksRegistration(browser)
   await pendingPass(browser)
+  await activePassLocation(browser)
   console.log('All isolated visitor browser checks passed')
  }finally{await browser.close()}
 })().catch(err=>{console.error(err);process.exitCode=1})
