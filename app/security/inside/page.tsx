@@ -60,9 +60,15 @@ export default function CurrentlyInsidePage() {
   useEffect(() => {
     fetchInside()
     const interval=setInterval(()=>{if(!document.hidden&&navigator.onLine)void fetchInside()},15000)
-    const onNet=()=>setOffline(!navigator.onLine)
+    const onNet=()=>{
+      const isOffline=!navigator.onLine
+      setOffline(isOffline)
+      if(!isOffline&&!document.hidden)void fetchInside()
+    }
+    const onVisible=()=>{if(!document.hidden&&navigator.onLine)void fetchInside()}
     onNet();window.addEventListener("online",onNet);window.addEventListener("offline",onNet)
-    return()=>{clearInterval(interval);window.removeEventListener("online",onNet);window.removeEventListener("offline",onNet)}
+    document.addEventListener("visibilitychange",onVisible)
+    return()=>{clearInterval(interval);window.removeEventListener("online",onNet);window.removeEventListener("offline",onNet);document.removeEventListener("visibilitychange",onVisible)}
   }, [])
 
   useEffect(() => {
@@ -83,7 +89,8 @@ export default function CurrentlyInsidePage() {
   const longitude=visitorBeingViewed?.current_longitude??null
   const accuracyMeters=visitorBeingViewed?.location_accuracy_m??null
   const locationStatus=visitorBeingViewed?.location_status||"NOT_SHARED"
-  const isRecentLocation=(locationStatus==="SHARING_ACTIVE"||locationStatus==="DELAYED")&&
+  const isRecentLocation=!offline&&
+    (locationStatus==="SHARING_ACTIVE"||locationStatus==="DELAYED")&&
     latitude!==null&&longitude!==null
   const matchingVisitors=visitors.filter(v=>
     [v.full_name,v.reference_number,v.destination_name,v.purpose]
