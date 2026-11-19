@@ -3,7 +3,6 @@
 import {useCallback,useEffect,useRef,useState} from "react"
 
 type Status={available:boolean;sharing:boolean;accuracyMeters:number|null;updatedAt:string|null}
-type Fix={latitude:number;longitude:number;accuracy:number;measuredAt:number}
 const maxAccuracy=150
 const format=(time:string)=>new Date(time).toLocaleTimeString("en-PH",{timeZone:"Asia/Manila"})
 
