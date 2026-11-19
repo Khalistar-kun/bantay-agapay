@@ -23,7 +23,6 @@ export default function VisitStatusPage() {
   const [visitStatus, setVisitStatus] = useState<VisitStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [shareLocation,setShareLocation]=useState(false)
   const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -85,37 +84,9 @@ export default function VisitStatusPage() {
     }
   }, [visitStatus?.status, token])
 
-  // Precise coordinates are sensitive. Do not share automatically:
-  // the visitor must explicitly opt in during an active, approved visit.
-  useEffect(() => {
-    if (visitStatus?.status !== "INSIDE" || !shareLocation || !navigator.geolocation) return
-
-    const pushLocation = () => {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const supabase = createClient()
-            await supabase.rpc("update_visit_location", {
-              p_token: token,
-              p_latitude: position.coords.latitude,
-              p_longitude: position.coords.longitude,
-            } as never)
-          } catch (err) {
-            console.error("Location update failed:", err)
-          }
-        },
-        () => {
-          // Silently ignore - live tracking is best-effort
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 15000 }
-      )
-    }
-
-    pushLocation()
-    const interval = setInterval(pushLocation, 20000)
-
-    return () => clearInterval(interval)
-  }, [visitStatus?.status, token,shareLocation])
+  // The old public-QR location RPC has been revoked by migration 14.
+  // Existing legacy visitor status remains read-only. Never use the QR
+  // itself to authorize precise coordinates or recreate anonymous writes.
 
   if (loading) {
     return (
@@ -199,19 +170,13 @@ export default function VisitStatusPage() {
             </p>
 
             <section className="mb-6 rounded-xl border border-rose-200 bg-[#fff6f8] p-4">
-              <h2 className="font-bold text-[#82172a]">Optional location sharing</h2>
-              <p className="mt-1 text-xs text-gray-600">
-                Sharing your precise location with school security is optional.
-                It works only while this page is open and your visit is active.
-                You can stop at any time. It does not affect QR entry or exit.
+              <h2 className="font-bold text-[#82172a]">Location sharing notice</h2>
+              <p className="mt-1 text-sm text-gray-700">
+                This older QR visit page does not collect or transmit your location.
+                Modern pre-registered visitors may optionally share their position from
+                their original verified registration browser's QR pass page.
+                Your visit and checkout do not require GPS.
               </p>
-              <button type="button" onClick={()=>setShareLocation(value=>!value)}
-                className="mt-3 w-full rounded-xl bg-[#82172a] px-4 py-3 text-sm font-bold text-white">
-                {shareLocation?"Stop sharing my location":"Share my location with security"}
-              </button>
-              <p className="mt-2 text-xs text-gray-500">{shareLocation?
-                "Location sharing is enabled only while this page remains open.":
-                "Location sharing is off. Your current coordinates are not being sent by this page."}</p>
             </section>
 
             <a
