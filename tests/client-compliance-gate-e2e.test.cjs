@@ -125,6 +125,7 @@ function setup({guardian=true,match=true,biometric='MATCH'}={}){
   '@/lib/client-compliance':compliance,
   '@/lib/server/rate-limit':{consumeRateLimit:async()=>true},
   '@/lib/server/sms-gateway':{smsGatewayConfigured:()=>true},
+  '@/lib/server/location-session':{locationSessionCookie:()=>({name:'test',value:'signed',options:{}})},
   '@/lib/biometrics/face-comparator':{compareEnrolledFaces:async()=>cfg.provider}
  }
  const pre=transpile('app/api/pre-register/route.ts',mocks)
