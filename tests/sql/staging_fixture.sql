@@ -61,3 +61,11 @@ CREATE FUNCTION public.get_visit_status(varchar) RETURNS integer LANGUAGE sql SE
 CREATE FUNCTION public.get_visit_directions(varchar) RETURNS integer LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$ SELECT 0; $$;
 GRANT EXECUTE ON FUNCTION public.get_pending_visitors(),public.get_visit_detail(uuid),
   public.get_visit_status(varchar),public.get_visit_directions(varchar) TO anon,authenticated;
+
+-- Deliberately model the formerly public QR-only GPS RPC so migration 14
+-- has an actual privilege to revoke in disposable CI.
+CREATE FUNCTION public.update_visit_location(varchar,numeric,numeric)
+RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path=''
+AS $$ SELECT true $$;
+GRANT EXECUTE ON FUNCTION public.update_visit_location(varchar,numeric,numeric)
+  TO anon,authenticated;
